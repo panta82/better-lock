@@ -52,6 +52,30 @@ describe('BetterLock', () => {
 				testDone();
 			}
 		});
+		
+		it('will log', (testDone) => {
+			let seq = 0;
+			const expected = [
+				'[MyLock] Acquire "My test"',
+				'[MyLock] Executing Job "My test" (#10)',
+				'[MyLock] Done called for Job "My test" (#10)',
+			];
+			
+			const lock = new BetterLock({
+				name: 'MyLock',
+				log
+			});
+			
+			BetterLock.LockJob._lastId = 9;
+			lock.acquire('My test', waitArgs(100), () => {
+				testDone();
+			});
+			
+			function log(msg) {
+				expect(msg).to.equal(expected[seq]);
+				seq++;
+			}
+		});
 	});
 });
 

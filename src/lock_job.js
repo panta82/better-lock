@@ -1,15 +1,14 @@
-let _lastId = 0;
-
 class LockJob {
 	constructor(key, executor, callback) {
-		_lastId++;
-		this.id = _lastId;
+		LockJob._lastId++;
+		this.id = LockJob._lastId;
 		this.key = key;
 		this.executor = executor;
 		this.callback = callback;
-		this.created_at = new Date();
+		this.enqueued_at = new Date();
+		this.wait_timeout = null;
 		this.executed_at = null;
-		this.completed_at = null;
+		this.execution_timeout = null;
 	}
 	
 	toString() {
@@ -18,5 +17,7 @@ class LockJob {
 			: `Job #${this.id}`;
 	}
 }
+
+LockJob._lastId = 0;
 
 module.exports = LockJob;

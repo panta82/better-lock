@@ -1,22 +1,26 @@
 class BetterLockError extends Error {
-	constructor(message) {
-		super(message);
+	constructor(name, message) {
+		if (name) {
+			super(`[${name}] ${message}`);
+		} else {
+			super(message);
+		}
 	}
 }
 
 class BetterLockInternalError extends Error {
-	constructor(message) {
+	constructor(name, message) {
 		const lastChar = message[message.length - 1];
 		if (lastChar !== '.' && lastChar !== '!' && lastChar !== '?') {
 			message += '.';
 		}
-		super(message + ' This is probably a bug inside "better-lock" library');
+		super(name, message + ' This is probably a bug inside "better-lock" library');
 	}
 }
 
 class InvalidArgumentError extends BetterLockError {
-	constructor(argument, expected, actual) {
-		super(`Argument "${argument}" must be ${expected} (got: "${actual}")`);
+	constructor(name, argument, expected, actual) {
+		super(name, `Argument "${argument}" must be ${expected} (got: "${actual}")`);
 	}
 }
 

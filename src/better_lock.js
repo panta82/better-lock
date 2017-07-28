@@ -17,7 +17,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	});
 	
 	/**
-	 * Acquire lock. Once the lock is acquired, we will call the executor function, with a done() method.
+	 * Acquire lock. Once the lock is acquired, we will call the executor function, with a "done" method.
 	 * You must call "done" to release the lock. If acquire fails, callback will be called with appropriate error.
 	 * Callback will also be called with whatever exit arguments you pass to done, so you can do all your cleanup
 	 * code there.
@@ -26,21 +26,22 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	 * @param {function} callback Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
 	 */
 	function acquire(key, executor, callback) {
-		log('enter', key);
-		
 		if (arguments.length < 3) {
 			callback = executor;
 			executor = key;
 			key = undefined;
 		}
+		
+		log(key ? `Acquire "${key}"` : 'Acquire');
+		
 		if (!tools.isString(key) && key !== undefined) {
-			throw new InvalidArgumentError('key', 'a string or undefined', key);
+			throw new InvalidArgumentError(options.name, 'key', 'a string or undefined', key);
 		}
 		if (!tools.isFunction(executor)) {
-			throw new InvalidArgumentError('executor', 'a function', executor);
+			throw new InvalidArgumentError(options.name, 'executor', 'a function', executor);
 		}
 		if (!tools.isFunction(callback)) {
-			throw new InvalidArgumentError('callback', 'a function', callback);
+			throw new InvalidArgumentError(options.name, 'callback', 'a function', callback);
 		}
 		
 		const queue = key !== undefined
@@ -93,12 +94,12 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			
 			const queue = getQueue(job.key);
 			if (!queue) {
-				throw new BetterLockInternalError(`Couldn't find queue for key "${job.key}"`);
+				throw new BetterLockInternalError(options.name, `Couldn't find queue for key "${job.key}"`);
 			}
 			
 			const index = queue.indexOf(job);
 			if (index < 0) {
-				throw new BetterLockInternalError(`Couldn't locate job ${job} inside its queue ("${job.key}")`);
+				throw new BetterLockInternalError(options.name, `Couldn't locate job ${job} inside its queue ("${job.key}")`);
 			}
 			
 			queue.splice(index, 1);
@@ -127,15 +128,15 @@ function makeLog(name, doLog) {
 	}
 	
 	if (name) {
-		name = '[' + name + ']';
+		name = '[' + name + '] ';
 	}
 	
-	return function log() {
-		const args = Array.prototype.slice.call(arguments);
+	return function log(msg) {
 		if (name) {
-			args.unshift(name);
+			doLog(name + msg);
+		} else {
+			doLog(msg);
 		}
-		doLog.apply(null, args);
 	};
 }
 
