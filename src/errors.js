@@ -16,7 +16,7 @@ class BetterLockInternalError extends Error {
 
 class InvalidArgumentError extends BetterLockError {
 	constructor(argument, expected, actual) {
-		super(`Argument ${argument} must be ${expected} (got: "${actual}")`);
+		super(`Argument "${argument}" must be ${expected} (got: "${actual}")`);
 	}
 }
 

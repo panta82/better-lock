@@ -21,7 +21,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	 * You must call "done" to release the lock. If acquire fails, callback will be called with appropriate error.
 	 * Callback will also be called with whatever exit arguments you pass to done, so you can do all your cleanup
 	 * code there.
-	 * @param {string} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
+	 * @param {string|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
 	 * @param {function} executor Function that will run inside the lock
 	 * @param {function} callback Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
 	 */
@@ -33,7 +33,9 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			executor = key;
 			key = undefined;
 		}
-		
+		if (!tools.isString(key) && key !== undefined) {
+			throw new InvalidArgumentError('key', 'a string or undefined', key);
+		}
 		if (!tools.isFunction(executor)) {
 			throw new InvalidArgumentError('executor', 'a function', executor);
 		}
@@ -41,7 +43,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			throw new InvalidArgumentError('callback', 'a function', callback);
 		}
 		
-		const queue = key
+		const queue = key !== undefined
 			? _keyQueues[key] || (_keyQueues[key] = [])
 			: _noKeyQueue;
 		
@@ -72,7 +74,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			return forEachQueue(update);
 		}
 		
-		if (!queue[0].executed_at) {
+		if (queue.length && !queue[0].executed_at) {
 			// First item is not being executed. So we can execute it now
 			executeJob(queue[0]);
 		}
