@@ -6,9 +6,13 @@ class LockJob {
 		this.executor = executor;
 		this.callback = callback;
 		this.enqueued_at = new Date();
-		this.wait_timeout = null;
 		this.executed_at = null;
-		this.execution_timeout = null;
+		this.ended_at = null;
+		
+		this.wait_timeout = undefined;
+		this.wait_timeout_ptr = null;
+		this.execution_timeout = undefined;
+		this.execution_timeout_ptr = null;
 	}
 	
 	toString() {

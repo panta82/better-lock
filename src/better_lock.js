@@ -2,7 +2,12 @@ const tools = require('./tools');
 
 const DEFAULT_OPTIONS = require('./options');
 const LockJob = require('./lock_job');
-const {BetterLockInternalError, InvalidArgumentError} = require('./errors');
+const {BetterLockInternalError, InvalidArgumentError, WaitTimeoutError} = require('./errors');
+
+const OPTION_ALIASES = {
+	wait_timeout: 'waitTimeout',
+	execution_timeout: 'executionTimeout',
+};
 
 function BetterLock(options = DEFAULT_OPTIONS) {
 	options = Object.assign({}, DEFAULT_OPTIONS, options);
@@ -24,15 +29,14 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	 * @param {string|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
 	 * @param {function} executor Function that will run inside the lock
 	 * @param {function} callback Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
+	 * @param {object} [customOptions] Option overrides to be applied on this job only
 	 */
-	function acquire(key, executor, callback) {
+	function acquire(key, executor, callback, customOptions = null) {
 		if (arguments.length < 3) {
 			callback = executor;
 			executor = key;
 			key = undefined;
 		}
-		
-		log(key ? `Acquire "${key}"` : 'Acquire');
 		
 		if (!tools.isString(key) && key !== undefined) {
 			throw new InvalidArgumentError(options.name, 'key', 'a string or undefined', key);
@@ -48,8 +52,33 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			? _keyQueues[key] || (_keyQueues[key] = [])
 			: _noKeyQueue;
 		
-		queue.push(new LockJob(key, executor, callback));
+		const job =  new LockJob(key, executor, callback);
+		job.wait_timeout = getOption('wait_timeout', customOptions);
+		job.execution_timeout = getOption('execution_timeout', customOptions);
+		queue.push(job);
+		
+		log(`Enqueued ${job}`);
+		
 		setImmediate(update);
+	}
+	
+	function getOption(key, customOptions) {
+		const alias = OPTION_ALIASES[key];
+		if (customOptions) {
+			if (customOptions[key] !== undefined) {
+				return customOptions[key];
+			}
+			if (alias && customOptions[alias] !== undefined) {
+				return customOptions[alias];
+			}
+		}
+		if (options[key] !== undefined) {
+			return options[key];
+		}
+		if (alias && options[alias] !== undefined) {
+			return options[alias];
+		}
+		return undefined;
 	}
 	
 	function getQueue(key) {
@@ -75,9 +104,19 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			return forEachQueue(update);
 		}
 		
-		if (queue.length && !queue[0].executed_at) {
-			// First item is not being executed. So we can execute it now
-			executeJob(queue[0]);
+		const queueLength = queue.length;
+		for (let i = 0; i < queueLength; i++) {
+			const job = queue[i];
+			
+			if (i === 0 && !job.executed_at) {
+				// The first job in queue is not being executed. So we can execute it now.
+				executeJob(job);
+			}
+			
+			if (!job.executed_at && tools.isNumber(job.wait_timeout) && !job.wait_timeout_ptr) {
+				// Job has been added, it's waiting, but no wait timeout was set. Set the timeout now.
+				job.wait_timeout_ptr = setTimeout(onWaitTimeout.bind(null, job), job.wait_timeout);
+			}
 		}
 	}
 	
@@ -87,34 +126,54 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	function executeJob(job) {
 		log(`Executing ${job}`);
 		job.executed_at = new Date();
+		
+		clearTimeout(job.wait_timeout_ptr);
+		job.wait_timeout_ptr = null;
+		
 		job.executor(lockDone);
 		
 		function lockDone() {
 			log(`Done called for ${job}`);
 			
-			const queue = getQueue(job.key);
-			if (!queue) {
-				throw new BetterLockInternalError(options.name, `Couldn't find queue for key "${job.key}"`);
-			}
-			
-			const index = queue.indexOf(job);
-			if (index < 0) {
-				throw new BetterLockInternalError(options.name, `Couldn't locate job ${job} inside its queue ("${job.key}")`);
-			}
-			
-			queue.splice(index, 1);
-			onJobDone(job, arguments);
-			
-			setImmediate(update);
+			endJob(job, arguments);
 		}
 	}
 	
 	/**
 	 * @param {LockJob} job
-	 * @param {*[]|arguments} args
 	 */
-	function onJobDone(job, args) {
-		job.callback.apply(null, args);
+	function onWaitTimeout(job) {
+		log(`${job} has timed out after waiting in queue for ${new Date() - job.enqueued_at}ms`);
+		
+		endJob(job, [new WaitTimeoutError(options.name, job)]);
+	}
+	
+	/**
+	 * @param {LockJob} job
+	 * @param {*[]|Array|Arguments} callbackArgs
+	 */
+	function endJob(job, callbackArgs) {
+		if (job.ended_at) {
+			log(`${job} is trying to end, but it has already ended at ${job.ended_at.toISOString()}. Called with arguments: ${callbackArgs}`);
+			return;
+		}
+		
+		const queue = getQueue(job.key);
+		if (!queue) {
+			throw new BetterLockInternalError(options.name, `Couldn't find queue for key "${job.key}"`);
+		}
+		
+		const index = queue.indexOf(job);
+		if (index < 0) {
+			throw new BetterLockInternalError(options.name, `Couldn't locate job ${job} inside its queue ("${job.key}")`);
+		}
+		
+		job.ended_at = new Date();
+		queue.splice(index, 1);
+		
+		job.callback.apply(null, callbackArgs);
+		
+		setImmediate(update);
 	}
 }
 

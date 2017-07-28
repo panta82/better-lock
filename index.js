@@ -7,6 +7,7 @@ BetterLock.BetterLock = BetterLock;
 BetterLock.BetterLockError = errors.BetterLockError;
 BetterLock.BetterLockInternalError = errors.BetterLockInternalError;
 BetterLock.InvalidArgumentError = errors.InvalidArgumentError;
+BetterLock.WaitTimeoutError = errors.WaitTimeoutError;
 
 BetterLock.LockJob = LockJob;
 

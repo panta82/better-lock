@@ -3,8 +3,8 @@ const expect = require('chai').expect;
 const BetterLock = require('../index');
 
 describe('BetterLock', () => {
-	describe('acquire', () => {
-		it('can run a basic happy path', (testDone) => {
+	describe('basics', () => {
+		it('can run a simple happy path', (testDone) => {
 			const lock = new BetterLock();
 			const startedAt = new Date();
 			
@@ -56,7 +56,7 @@ describe('BetterLock', () => {
 		it('will log', (testDone) => {
 			let seq = 0;
 			const expected = [
-				'[MyLock] Acquire "My test"',
+				'[MyLock] Enqueued Job "My test" (#10)',
 				'[MyLock] Executing Job "My test" (#10)',
 				'[MyLock] Done called for Job "My test" (#10)',
 			];
@@ -75,6 +75,59 @@ describe('BetterLock', () => {
 				expect(msg).to.equal(expected[seq]);
 				seq++;
 			}
+		});
+	});
+	
+	describe('queueing', () => {
+		it('can execute multiple jobs one after another', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 100
+			});
+			
+			let called1 = false;
+			
+			lock.acquire(waitArgs(50, null, 'ok1'), (err, res) => {
+				expect(err).to.be.null;
+				expect(res).to.equal('ok1');
+				called1 = true;
+			});
+			
+			lock.acquire(waitArgs(150, null, 'ok2'), (err, res) => {
+				expect(err).to.be.null;
+				expect(res).to.equal('ok2');
+				expect(called1).to.be.true;
+				testDone();
+			});
+		});
+		
+		it('jobs will timeout after waiting in queue for too long', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 50
+			});
+			
+			let cbCount = 0;
+			
+			lock.acquire(waitArgs(75, null, 'ok1'), (err, res) => {
+				expect(err).to.be.null;
+				expect(res).to.equal('ok1');
+				cbCount++;
+			});
+			
+			lock.acquire(waitArgs(200000, null, 'ok2'), (err, res) => {
+				expect(err).to.be.instanceOf(BetterLock.WaitTimeoutError);
+				cbCount++;
+				testDone();
+			});
+			
+			setTimeout(() => {
+				// Enqueue after some time, this one should run
+				lock.acquire(waitArgs(50, null, 'ok3'), (err, res) => {
+					expect(err).to.be.null;
+					expect(res).to.equal('ok3');
+					expect(cbCount).to.equal(2);
+					testDone();
+				});
+			}, 50);
 		});
 	});
 });
