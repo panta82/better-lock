@@ -14,7 +14,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		throw new InvalidArgumentError(options.name, 'overflow_strategy', `one of (${Object.keys(options.overflow_strategy).join(',')})`, options.overflow_strategy);
 	}
 	
-	const log = makeLog(options.name, options.log);
+	const log = tools.makeLog(options.name, options.log);
 	
 	const _noKeyQueue = [];
 	const _keyQueues = {};
@@ -30,16 +30,31 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	 * code there.
 	 * @param {string|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
 	 * @param {function} executor Function that will run inside the lock
-	 * @param {function} callback Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
+	 * @param {function} [callback] Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
 	 * @param {object} [jobOptions] job options (mostly timeouts), to be applied on this job only
 	 */
 	function acquire(key, executor, callback, jobOptions = null) {
-		if (arguments.length < 3) {
+		// Repackage "key". Must be string or undefined
+		if (key === null) {
+			key = undefined;
+		}
+		else if (!tools.isString(key) && key !== undefined) {
+			jobOptions = callback;
 			callback = executor;
 			executor = key;
 			key = undefined;
 		}
 		
+		// Create callback wrapper for promise interface
+		if (!tools.isFunction(callback)) {
+			if (jobOptions === undefined) {
+				jobOptions = callback;
+			}
+			
+			callback = tools.callbackWithPromise();
+		}
+		
+		// Validate the most important parts
 		if (!tools.isString(key) && key !== undefined) {
 			throw new InvalidArgumentError(options.name, 'key', 'a string or undefined', key);
 		}
@@ -69,6 +84,8 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		log(`Enqueued ${job}`);
 		
 		setImmediate(update, queue);
+		
+		return callback.promise;
 	}
 	
 	function getOption(key, customOptions) {
@@ -161,7 +178,30 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			job.execution_timeout_ptr = setTimeout(onExecutionTimeout.bind(null, job), job.execution_timeout);
 		}
 		
-		job.executor(lockDone);
+		if (job.executor.length > 0) {
+			// Callback interface
+			job.executor(lockDone);
+			return;
+		}
+		
+		// Promise interface
+		let promise;
+		try {
+			promise = job.executor();
+		}
+		catch (err) {
+			// Error thrown directly from executor
+			lockDone(err);
+		}
+		
+		if (promise instanceof Promise) {
+			promise
+				.then(res => lockDone(null, res))
+				.catch(err => lockDone(err));
+		} else {
+			// Promise is just the result value we don't have to wait
+			lockDone(null, promise);
+		}
 		
 		function lockDone() {
 			log(`Done called for ${job}`);
@@ -229,28 +269,6 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		
 		setImmediate(update, queue);
 	}
-}
-
-function makeLog(name, doLog) {
-	if (!doLog) {
-		return tools.noop;
-	}
-	
-	if (doLog === true) {
-		doLog = console.log.bind(console);
-	}
-	
-	if (name) {
-		name = '[' + name + '] ';
-	}
-	
-	return function log(msg) {
-		if (name) {
-			doLog(name + msg);
-		} else {
-			doLog(msg);
-		}
-	};
 }
 
 module.exports = {

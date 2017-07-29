@@ -21,9 +21,48 @@ function isNumber(val, includeInfinity = false, includeNaN = false) {
 
 function noop() {}
 
+function makeLog(name, doLog) {
+	if (!doLog) {
+		return noop;
+	}
+	
+	if (doLog === true) {
+		doLog = console.log.bind(console);
+	}
+	
+	if (name) {
+		name = '[' + name + '] ';
+	}
+	
+	return function log(msg) {
+		if (name) {
+			doLog(name + msg);
+		} else {
+			doLog(msg);
+		}
+	};
+}
+
+function callbackWithPromise() {
+	let callback;
+	const promise = new Promise((resolve, reject) => {
+		callback = (err, result) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(result);
+			}
+		};
+	});
+	callback.promise = promise;
+	return callback;
+}
+
 module.exports = {
 	isString,
 	isFunction,
 	isNumber,
-	noop
+	noop,
+	makeLog,
+	callbackWithPromise
 };

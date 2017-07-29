@@ -311,6 +311,115 @@ describe('BetterLock', () => {
 		})();
 	});
 	
+	describe('if used with promises', () => {
+		it('will return a viable promise if called without callback', (testDone) => {
+			const lock = new BetterLock();
+			
+			const variants = [];
+
+			variants.push(
+				lock.acquire(waitArgs(0, null, 'success'))
+					.then(res => {
+						expect(res).to.equal('success');
+						
+						return lock.acquire(waitArgs(0, 'fail'))
+							.catch(err => {
+								expect(err).to.equal('fail');
+								return 1;
+							});
+					})
+			);
+			
+			variants.push(
+				lock.acquire('with key', waitArgs(0, null, 'success'))
+					.then(res => {
+						expect(res).to.equal('success');
+						
+						return lock.acquire('with key', waitArgs(0, 'fail'))
+							.catch(err => {
+								expect(err).to.equal('fail');
+								return 2;
+							});
+					})
+			);
+			
+			variants.push(
+				lock.acquire('with key and options', waitArgs(0, null, 'success'), {})
+					.then(res => {
+						expect(res).to.equal('success');
+						
+						return lock.acquire('with key and options', waitArgs(0, 'fail'))
+							.catch(err => {
+								expect(err).to.equal('fail');
+								return 3;
+							});
+					})
+			);
+			
+			variants.push(
+				lock.acquire(/* just options */ waitArgs(0, null, 'success'), {})
+					.then(res => {
+						expect(res).to.equal('success');
+						
+						return lock.acquire(waitArgs(0, 'fail'), {})
+							.catch(err => {
+								expect(err).to.equal('fail');
+								return 4;
+							});
+					})
+			);
+			
+			Promise.all(variants).then(results => {
+				expect(results).to.eql([1, 2, 3, 4]);
+				testDone();
+			}).catch(testDone);
+		});
+		
+		it('will allow executor to return a promise instead of calling done', (testDone) => {
+			const lock = new BetterLock();
+			
+			lock.acquire(() => {
+				return new Promise((resolve, reject) => {
+					setTimeout(() => {
+						resolve('result');
+					}, 20);
+				})
+			}, (err, res) => {
+				expect(err).to.be.null;
+				expect(res).to.equal('result');
+			});
+			
+			lock.acquire(() => {
+				return new Promise((resolve, reject) => {
+					setTimeout(() => {
+						reject('error');
+					}, 20);
+				})
+			}, (err) => {
+				expect(err).to.equal('error');
+				
+				testDone();
+			});
+		});
+		
+		it('will allow executor to directly return a value or throw an error', (testDone) => {
+			const lock = new BetterLock();
+			
+			lock.acquire(() => 'result', (err, res) => {
+				expect(err).to.be.null;
+				expect(res).to.equal('result');
+			});
+			
+			lock.acquire(() => {
+				throw 'error';
+			}, (err) => {
+				expect(err).to.equal('error');
+				
+				testDone();
+			});
+		});
+	});
+	
 });
 
 function waitArgs(wait, ...args) {
