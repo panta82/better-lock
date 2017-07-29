@@ -1,7 +1,7 @@
 {
   "name": "better-lock",
-  "version": "0.0.1",
-  "description": "A node.js lock library",
+  "version": "0.1.0",
+  "description": "A (better) node.js lock library",
   "main": "index.js",
   "scripts": {
     "test": "nyc mocha --recursive spec"
