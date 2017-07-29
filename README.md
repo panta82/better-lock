@@ -30,17 +30,17 @@ const BetterLock = require('better-lock');
 const lock = new BetterLock();
 //...
 lock.acquire(done => {
-	// Inside the lock
-	doMyAsyncStuffHere((err) => {
-		// Call done when done
-		done(err);
-	});
+    // Inside the lock
+    doMyAsyncStuffHere((err) => {
+        // Call done when done
+        done(err);
+    });
 }, (err) => {
-	// Outside the lock
-	if (err) {
-		// Either your od BetterLock's error
-		console.error(err); 
-	}
+    // Outside the lock
+    if (err) {
+        // Either your od BetterLock's error
+        console.error(err); 
+    }
 });
 ```
 
@@ -50,19 +50,19 @@ lock.acquire(done => {
 const lock = new BetterLock();
 //...
 lock
-	.acquire(() => {
-		// just make sure you return this promise chain
-		return doSomethingThatReturnsPromise()
-			.then(() => {
-				 return 'result';
-			});
-	})
-	.then(res => {
-		console.log(res); // result		
-	})
-	.catch(err => {
-		// Either your od BetterLock's error 
-	});
+    .acquire(() => {
+        // just make sure you return this promise chain
+        return doSomethingThatReturnsPromise()
+            .then(() => {
+                 return 'result';
+            });
+    })
+    .then(res => {
+        console.log(res); // result		
+    })
+    .catch(err => {
+        // Either your od BetterLock's error 
+    });
 ```
 
 ##### Kitchen sink example
@@ -79,27 +79,27 @@ const lock = new BetterLock({
 });
 
 function processFile(filename, callback) {
-	lock.acquire(filename, () => {
-		return appendToFile(filename)
-			.then(result => {
-				return updateDb(result);
-			});
-	}).then(result => {
-		callback(null, {
-			status: true,
-			result
-		});
-	}).catch(err => {
-		if (err instanceof BetterLock.QueueOverflowError) {
-			return callback(null, {
-				status: false // The job was discarded
-			});
-		}
-		if (err instanceof BetterLock.ExecutionTimeoutError) {
-			winstonLogger.warn('Potential swallowed callback! Stack trace to the entry site:', err.stack);
-		}
-		return callback(err);
-	});
+    lock.acquire(filename, () => {
+        return appendToFile(filename)
+            .then(result => {
+                return updateDb(result);
+            });
+    }).then(result => {
+        callback(null, {
+            status: true,
+            result
+        });
+    }).catch(err => {
+        if (err instanceof BetterLock.QueueOverflowError) {
+            return callback(null, {
+                status: false // The job was discarded
+            });
+        }
+        if (err instanceof BetterLock.ExecutionTimeoutError) {
+            winstonLogger.warn('Potential swallowed callback! Stack trace to the entry site:', err.stack);
+        }
+        return callback(err);
+    });
 }
 
 ```
