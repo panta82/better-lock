@@ -20,8 +20,22 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	const _keyQueues = {};
 	
 	Object.assign(this, /** @lends {BetterLock.prototype} */ {
+		canAcquire,
 		acquire
 	});
+	
+	/**
+	 * Returns true if the caller can *immediately* acquire the lock. There is nothing executing and nothing in the queue.
+	 * @param key
+	 */
+	function canAcquire(key) {
+		const queue = getQueue(key);
+		if (!queue) {
+			return true;
+		}
+		
+		return !queue.executing && !queue.length;
+	}
 	
 	/**
 	 * Acquire lock. Once the lock is acquired, we will call the executor function, with a "done" method.

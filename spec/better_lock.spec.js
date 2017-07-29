@@ -76,6 +76,24 @@ describe('BetterLock', () => {
 		});
 	});
 	
+	it('will correctly tell caller if they can acquire lock', (testDone) => {
+		const lock = new BetterLock({});
+		
+		expect(lock.canAcquire()).to.be.true;
+		expect(lock.canAcquire('test')).to.be.true;
+		
+		lock.acquire(waitArgs(10), () => {});
+		lock.acquire('test', waitArgs(30), () => {
+			expect(lock.canAcquire()).to.be.true;
+			expect(lock.canAcquire('test')).to.be.true;
+			
+			testDone();
+		});
+		
+		expect(lock.canAcquire()).to.be.false;
+		expect(lock.canAcquire('test')).to.be.false;
+	});
+	
 	it('will log', (testDone) => {
 		let seq = 0;
 		const expected = [
