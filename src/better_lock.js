@@ -11,7 +11,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		throw new InvalidArgumentError(options.name, 'queue_size', `null, 0 or a positive number`, options.queue_size);
 	}
 	if (!OVERFLOW_STRATEGIES[options.overflow_strategy]) {
-		throw new InvalidArgumentError(options.name, 'overflow_strategy', `one of (${Object.keys(options.overflow_strategy).join(',')})`, options.overflow_strategy);
+		throw new InvalidArgumentError(options.name, 'overflow_strategy', `one of (${Object.keys(OVERFLOW_STRATEGIES).join(',')})`, options.overflow_strategy);
 	}
 	
 	const log = tools.makeLog(options.name, options.log);

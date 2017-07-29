@@ -49,3 +49,5 @@ crashlytics-build.properties
 fabric.properties
 
 node_modules
+.nyc_output
+coverage

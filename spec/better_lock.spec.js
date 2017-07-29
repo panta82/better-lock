@@ -100,6 +100,25 @@ describe('BetterLock', () => {
 		}
 	});
 	
+	it('will validate options', () => {
+		testArgument('queue_size', -1);
+		testArgument('queue_size', 'large');
+		testArgument('queue_size', NaN);
+		
+		testArgument('overflow_strategy', false);
+		testArgument('overflow_strategy', null);
+		testArgument('overflow_strategy', 'eject');
+		testArgument('overflow_strategy', 'REJECT');
+		
+		function testArgument(name, value) {
+			expect(() => {
+				new BetterLock({
+					[name]: value
+				});
+			}).to.throw(BetterLock.InvalidArgumentError);
+		}
+	});
+	
 	it('jobs will timeout after waiting in queue for too long', (testDone) => {
 		const lock = new BetterLock({
 			wait_timeout: 50,
