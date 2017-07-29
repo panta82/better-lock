@@ -13,6 +13,8 @@ class LockJob {
 		this.wait_timeout_ptr = null;
 		this.execution_timeout = undefined;
 		this.execution_timeout_ptr = null;
+		
+		this.incoming_stack = null;
 	}
 	
 	toString() {

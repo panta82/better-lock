@@ -1,6 +1,7 @@
 const OPTION_ALIASES = {
 	wait_timeout: 'waitTimeout',
 	execution_timeout: 'executionTimeout',
+	queue_size: 'queueSize',
 	overflow_strategy: 'overflowStrategy'
 };
 
@@ -13,7 +14,7 @@ const OPTION_ALIASES = {
 
 /**
  * What to do when a queue overflows
- * @type {OverflowStrategies}
+ * @type {OverflowStrategies|string}
  */
 const OVERFLOW_STRATEGIES = {
 	kick_first: 'kick_first',
@@ -55,9 +56,15 @@ const DEFAULT_OPTIONS = {
 	
 	/**
 	 * What happens when queue overflows. One of OVERFLOW_STRATEGIES values.
-	 * @type {OVERFLOW_STRATEGIES}
+	 * @type {string}
 	 */
-	overflow_strategy: OVERFLOW_STRATEGIES.reject
+	overflow_strategy: OVERFLOW_STRATEGIES.reject,
+	
+	/**
+	 * In any error produced by BetterLock, extend the stack trace to include income trace
+	 * @type {boolean}
+	 */
+	extend_stack_traces: true
 };
 
 module.exports = {

@@ -7,8 +7,8 @@ const {BetterLockInternalError, InvalidArgumentError, WaitTimeoutError, Executio
 function BetterLock(options = DEFAULT_OPTIONS) {
 	options = Object.assign({}, DEFAULT_OPTIONS, options);
 	
-	if (!(options.queue_size === null || options.queue_size >= 1)) {
-		throw new InvalidArgumentError(options.name, 'queue_size', `null or positive number`, options.queue_size);
+	if (!(options.queue_size === null || options.queue_size >= 0)) {
+		throw new InvalidArgumentError(options.name, 'queue_size', `null, 0 or a positive number`, options.queue_size);
 	}
 	if (!OVERFLOW_STRATEGIES[options.overflow_strategy]) {
 		throw new InvalidArgumentError(options.name, 'overflow_strategy', `one of (${Object.keys(options.overflow_strategy).join(',')})`, options.overflow_strategy);
@@ -57,6 +57,13 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		const job =  new LockJob(key, executor, callback);
 		job.wait_timeout = getOption('wait_timeout', jobOptions);
 		job.execution_timeout = getOption('execution_timeout', jobOptions);
+		
+		if (getOption('extend_stack_traces', jobOptions)) {
+			const tempErr = new Error();
+			Error.captureStackTrace(tempErr, acquire);
+			job.incoming_stack = tempErr.stack;
+		}
+		
 		queue.push(job);
 		
 		log(`Enqueued ${job}`);
@@ -104,7 +111,7 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			executeJob(queue.executing);
 		}
 		
-		if (options.queue_size > 0) {
+		if (options.queue_size !== null) {
 			while (options.queue_size < queue.length) {
 				// Overflow. Need to kick someone out
 				let jobToKick;

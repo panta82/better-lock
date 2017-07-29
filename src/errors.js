@@ -1,11 +1,16 @@
 class BetterLockError extends Error {
-	constructor(name, message) {
+	constructor(name, message, incomingStack = null) {
 		if (name) {
 			super(`[${name}] ${message}`);
 		} else {
 			super(message);
 		}
 		this.lock_name = name;
+		
+		if (incomingStack) {
+			const withoutFirstLine = incomingStack.split('\n').slice(1).join('\n');
+			this.stack = this.stack + '\n    --------------------------------------------------------------------------------\n' + withoutFirstLine;
+		}
 	}
 }
 
@@ -28,16 +33,16 @@ class InvalidArgumentError extends BetterLockError {
 
 class WaitTimeoutError extends BetterLockError {
 	constructor(name, job) {
-		const message = `Waiting job ${job} has timed out after ${new Date() - job.enqueued_at}ms`;
-		super(name, message);
+		const message = `Waiting ${job} has timed out after ${new Date() - job.enqueued_at}ms`;
+		super(name, message, job.incoming_stack);
 		this.job = job;
 	}
 }
 
 class ExecutionTimeoutError extends BetterLockError {
 	constructor(name, job) {
-		const message = `Executing job ${job} has timed out after ${new Date() - job.executed_at}ms`;
-		super(name, message);
+		const message = `Executing ${job} has timed out after ${new Date() - job.executed_at}ms`;
+		super(name, message, job.incoming_stack);
 		this.job = job;
 	}
 }
@@ -45,7 +50,7 @@ class ExecutionTimeoutError extends BetterLockError {
 class QueueOverflowError extends BetterLockError {
 	constructor(name, job, strategy) {
 		const message = `Too many pending jobs. ${job} was kicked out using the "${strategy}" strategy`;
-		super(name, message);
+		super(name, message, job.incoming_stack);
 		this.job = job;
 		this.strategy = strategy;
 	}

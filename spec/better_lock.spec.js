@@ -53,6 +53,29 @@ describe('BetterLock', () => {
 		}
 	});
 	
+	it('can execute multiple jobs one after another', (testDone) => {
+		const lock = new BetterLock({
+			wait_timeout: 100,
+			execution_timeout: 200, // should never trigger
+			queue_size: 5
+		});
+		
+		let called1 = false;
+		
+		lock.acquire(waitArgs(50, null, 'ok1'), (err, res) => {
+			expect(err).to.be.null;
+			expect(res).to.equal('ok1');
+			called1 = true;
+		});
+		
+		lock.acquire(waitArgs(150, null, 'ok2'), (err, res) => {
+			expect(err).to.be.null;
+			expect(res).to.equal('ok2');
+			expect(called1).to.be.true;
+			testDone();
+		});
+	});
+	
 	it('will log', (testDone) => {
 		let seq = 0;
 		const expected = [
@@ -75,29 +98,6 @@ describe('BetterLock', () => {
 			expect(msg).to.equal(expected[seq]);
 			seq++;
 		}
-	});
-
-	it('can execute multiple jobs one after another', (testDone) => {
-		const lock = new BetterLock({
-			wait_timeout: 100,
-			execution_timeout: 200, // should never trigger
-			queue_size: 5
-		});
-		
-		let called1 = false;
-		
-		lock.acquire(waitArgs(50, null, 'ok1'), (err, res) => {
-			expect(err).to.be.null;
-			expect(res).to.equal('ok1');
-			called1 = true;
-		});
-		
-		lock.acquire(waitArgs(150, null, 'ok2'), (err, res) => {
-			expect(err).to.be.null;
-			expect(res).to.equal('ok2');
-			expect(called1).to.be.true;
-			testDone();
-		});
 	});
 	
 	it('jobs will timeout after waiting in queue for too long', (testDone) => {
@@ -259,6 +259,56 @@ describe('BetterLock', () => {
 				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
 			});
 		});
+		
+		it('will handle queue size of 0', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 200, // should never trigger
+				execution_timeout: 300, // should never trigger
+				queue_size: 0,
+				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.kick_first
+			});
+			
+			let cbCount = 0;
+			lock.acquire(waitArgs(25, 1), (arg) => {
+				// The executing one
+				cbCount++;
+				expect(cbCount).to.equal(2);
+				expect(arg).to.equal(1);
+				testDone();
+			});
+			lock.acquire(waitArgs(5, 2), (err) => {
+				cbCount++;
+				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
+				expect(cbCount).to.equal(1);
+			});
+		});
+	});
+	
+	it('will extend stack traces', (testDone) => {
+		(function colorfulFunctionName() {
+			const lock = new BetterLock({
+				wait_timeout: 0,
+				execution_timeout: 5,
+				queue_size: 1,
+				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.reject
+			});
+			
+			lock.acquire(waitArgs(25), (err) => {
+				expect(err).to.be.instanceOf(BetterLock.ExecutionTimeoutError);
+				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
+				testDone();
+			});
+			
+			lock.acquire(waitArgs(120), (err) => {
+				expect(err).to.be.instanceOf(BetterLock.WaitTimeoutError);
+				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
+			});
+			
+			lock.acquire(waitArgs(120), (err) => {
+				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
+				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
+			});
+		})();
 	});
 	
 });
