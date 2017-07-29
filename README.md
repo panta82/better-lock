@@ -2,6 +2,8 @@
 
 A (better) node.js lock library.
 
+![Travis tests](https://travis-ci.org/panta82/better-lock.svg?branch=master)
+
 ### Features
 
 - Named and keyed locks
