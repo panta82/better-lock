@@ -34,9 +34,18 @@ class WaitTimeoutError extends BetterLockError {
 	}
 }
 
+class ExecutionTimeoutError extends BetterLockError {
+	constructor(name, job) {
+		const message = `Executing job ${job} has timed out after ${new Date() - job.executed_at}ms`;
+		super(name, message);
+		this.job = job;
+	}
+}
+
 module.exports = {
 	BetterLockError,
 	BetterLockInternalError,
 	InvalidArgumentError,
-	WaitTimeoutError
+	WaitTimeoutError,
+	ExecutionTimeoutError
 };

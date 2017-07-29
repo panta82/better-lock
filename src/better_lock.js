@@ -1,8 +1,8 @@
 const tools = require('./tools');
 
-const DEFAULT_OPTIONS = require('./options');
+const DEFAULT_OPTIONS = require('./default_options');
 const LockJob = require('./lock_job');
-const {BetterLockInternalError, InvalidArgumentError, WaitTimeoutError} = require('./errors');
+const {BetterLockInternalError, InvalidArgumentError, WaitTimeoutError, ExecutionTimeoutError} = require('./errors');
 
 const OPTION_ALIASES = {
 	wait_timeout: 'waitTimeout',
@@ -130,6 +130,10 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 		clearTimeout(job.wait_timeout_ptr);
 		job.wait_timeout_ptr = null;
 		
+		if (tools.isNumber(job.execution_timeout)) {
+			job.execution_timeout_ptr = setTimeout(onExecutionTimeout.bind(null, job), job.execution_timeout);
+		}
+		
 		job.executor(lockDone);
 		
 		function lockDone() {
@@ -150,6 +154,15 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	
 	/**
 	 * @param {LockJob} job
+	 */
+	function onExecutionTimeout(job) {
+		log(`${job} has timed out after executing for ${new Date() - job.executed_at}ms`);
+		
+		endJob(job, [new ExecutionTimeoutError(options.name, job)]);
+	}
+	
+	/**
+	 * @param {LockJob} job
 	 * @param {*[]|Array|Arguments} callbackArgs
 	 */
 	function endJob(job, callbackArgs) {
@@ -157,6 +170,9 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 			log(`${job} is trying to end, but it has already ended at ${job.ended_at.toISOString()}. Called with arguments: ${callbackArgs}`);
 			return;
 		}
+		
+		clearTimeout(job.execution_timeout_ptr);
+		job.execution_timeout_ptr = null;
 		
 		const queue = getQueue(job.key);
 		if (!queue) {
