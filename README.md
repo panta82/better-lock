@@ -106,7 +106,7 @@ function processFile(filename, callback) {
 
 ### Motivation
 
-I was using [async-lock](https://github.com/rogierschouten/async-lock) in a work project. Something was swallowing a callback in production. Not only did async-lock did nothing to prevent it, it was very spartan with its error messages. All of which kind of pissed me off.
+I was using [async-lock](https://github.com/rogierschouten/async-lock) in a work project. Something was swallowing a callback in production. Not only did async-lock did nothing to prevent it, it was very spartan with its error messages.
 
 So, as a weekend project, I have decided to improve on `async-lock` it in the following ways:
 
@@ -131,6 +131,8 @@ I have decided to not implement the following features:
 
 ### Options
 
+All available options with defaults can be seen [here](src/consts.js).
+
 Options are provided when you construct a lock instance. Some option overrides are also available when you call `lock.acquire`, as the last argument (namely, timeouts).
 
 ```javascript
@@ -138,8 +140,8 @@ lock.acquire(executor, callback, {
 	wait_timeout: 1000
 });
 ```
- 
-All available options with defaults can be seen [here](src/consts.js).
+
+Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`). 
 
 During runtime, you can change the defaults like this:
 
