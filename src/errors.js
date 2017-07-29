@@ -42,10 +42,20 @@ class ExecutionTimeoutError extends BetterLockError {
 	}
 }
 
+class QueueOverflowError extends BetterLockError {
+	constructor(name, job, strategy) {
+		const message = `Too many pending jobs. ${job} was kicked out using the "${strategy}" strategy`;
+		super(name, message);
+		this.job = job;
+		this.strategy = strategy;
+	}
+}
+
 module.exports = {
 	BetterLockError,
 	BetterLockInternalError,
 	InvalidArgumentError,
 	WaitTimeoutError,
-	ExecutionTimeoutError
+	ExecutionTimeoutError,
+	QueueOverflowError
 };

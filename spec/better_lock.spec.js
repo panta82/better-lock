@@ -79,7 +79,9 @@ describe('BetterLock', () => {
 
 	it('can execute multiple jobs one after another', (testDone) => {
 		const lock = new BetterLock({
-			wait_timeout: 100
+			wait_timeout: 100,
+			execution_timeout: 200, // should never trigger
+			queue_size: 5
 		});
 		
 		let called1 = false;
@@ -131,7 +133,8 @@ describe('BetterLock', () => {
 	it('will timeout long running jobs', (testDone) => {
 		const lock = new BetterLock({
 			wait_timeout: 100, // should never trigger
-			execution_timeout: 75
+			execution_timeout: 75,
+			queue_size: 5
 		});
 		
 		let cbCount = 0;
@@ -149,6 +152,115 @@ describe('BetterLock', () => {
 			});
 		}, 75)
 	});
+	
+	describe('when overflowing', () => {
+		it('will kick out the right job using the "kick_first" strategy', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 200, // should never trigger
+				execution_timeout: 300, // should never trigger
+				queue_size: 2,
+				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.kick_first
+			});
+			
+			let cbCount = 0;
+			lock.acquire(waitArgs(25, 1), (arg) => {
+				// The executing one
+				cbCount++;
+				expect(cbCount).to.equal(2);
+				expect(arg).to.equal(1);
+			});
+			lock.acquire(waitArgs(5, 2), (err) => {
+				// First in queue. The one to be kicked out
+				cbCount++;
+				expect(cbCount).to.equal(1);
+				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
+			});
+			lock.acquire(waitArgs(5, 3), (arg) => {
+				cbCount++;
+				expect(cbCount).to.equal(3);
+				expect(arg).to.equal(3);
+			});
+			lock.acquire(waitArgs(5, 4), (arg) => {
+				// This one will trigger the kicking out
+				cbCount++;
+				expect(cbCount).to.equal(4);
+				expect(arg).to.equal(4);
+				testDone();
+			});
+		});
+		
+		it('will kick out the right job using the "kick_last" strategy', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 200, // should never trigger
+				execution_timeout: 300, // should never trigger
+				queue_size: 2,
+				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.kick_last
+			});
+			
+			let cbCount = 0;
+			lock.acquire(waitArgs(25, 1), (arg) => {
+				// The executing one
+				cbCount++;
+				expect(cbCount).to.equal(2);
+				expect(arg).to.equal(1);
+			});
+			lock.acquire(waitArgs(5, 2), (arg) => {
+				cbCount++;
+				expect(cbCount).to.equal(3);
+				expect(arg).to.equal(2);
+				
+			});
+			lock.acquire(waitArgs(5, 3), (err) => {
+				// The last in queue before adding the overflow job. The one to be kicked out
+				cbCount++;
+				expect(cbCount).to.equal(1);
+				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
+			});
+			lock.acquire(waitArgs(5, 4), (arg) => {
+				// This one will trigger the kicking out
+				cbCount++;
+				expect(cbCount).to.equal(4);
+				expect(arg).to.equal(4);
+				testDone();
+			});
+		});
+		
+		it('will kick out the right job using the "reject" strategy', (testDone) => {
+			const lock = new BetterLock({
+				wait_timeout: 200, // should never trigger
+				execution_timeout: 300, // should never trigger
+				queue_size: 2,
+				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.reject
+			});
+			
+			let cbCount = 0;
+			lock.acquire(waitArgs(25, 1), (arg) => {
+				// The executing one
+				cbCount++;
+				expect(cbCount).to.equal(2);
+				expect(arg).to.equal(1);
+			});
+			lock.acquire(waitArgs(5, 2), (arg) => {
+				cbCount++;
+				expect(cbCount).to.equal(3);
+				expect(arg).to.equal(2);
+				
+			});
+			lock.acquire(waitArgs(5, 3), (arg) => {
+				cbCount++;
+				expect(cbCount).to.equal(4);
+				expect(arg).to.equal(3);
+				testDone();
+			});
+			lock.acquire(waitArgs(5, 4), (err) => {
+				// This one will trigger the kicking out. And it will be the one kicked out
+				cbCount++;
+				expect(cbCount).to.equal(1);
+				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
+			});
+		});
+	});
+	
 });
 
 function waitArgs(wait, ...args) {
