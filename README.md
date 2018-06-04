@@ -157,6 +157,12 @@ BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
 
 You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.js);
 
+### Change log
+
+Date|Change
+----|------
+2018/06/04|You can now use a Number as job name
+
 ### Development
 
 Fork, then git clone. The project is already set up with a WebStorm project, if that's your cup of tee.

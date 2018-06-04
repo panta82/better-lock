@@ -42,22 +42,26 @@ function BetterLock(options = DEFAULT_OPTIONS) {
 	 * You must call "done" to release the lock. If acquire fails, callback will be called with appropriate error.
 	 * Callback will also be called with whatever exit arguments you pass to done, so you can do all your cleanup
 	 * code there.
-	 * @param {string|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
+	 * @param {string|Number|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
 	 * @param {function} executor Function that will run inside the lock
 	 * @param {function} [callback] Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
 	 * @param {object} [jobOptions] job options (mostly timeouts), to be applied on this job only
 	 */
 	function acquire(key, executor, callback, jobOptions = null) {
-		// Repackage "key". Must be string or undefined
+		// Repackage "key". Must be string or number or undefined
 		if (key === null) {
 			key = undefined;
-		}
-		else if (!tools.isString(key) && key !== undefined) {
-			jobOptions = callback;
-			callback = executor;
-			executor = key;
-			key = undefined;
-		}
+		} else {
+      if (tools.isNumber(key)) {
+        key = String(key);
+      }
+      if (!tools.isString(key) && key !== undefined) {
+        jobOptions = callback;
+        callback = executor;
+        executor = key;
+        key = undefined;
+      }
+    }
 		
 		// Create callback wrapper for promise interface
 		if (!tools.isFunction(callback)) {

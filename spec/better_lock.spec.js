@@ -17,6 +17,27 @@ describe('BetterLock', () => {
 		});
 	});
 	
+	it('will accept number as a name', (testDone) => {
+    const lock = new BetterLock();
+    
+    let doneFirst = false;
+    lock.acquire(15, waitArgs(20), () => {
+      doneFirst = true;
+      
+      testDone();
+    });
+    
+    lock.acquire('15', () => {
+      expect(doneFirst).to.be.true;
+    });
+    lock.acquire(15, () => {
+      expect(doneFirst).to.be.true;
+    });
+    lock.acquire(16, () => {
+      expect(doneFirst).to.be.false;
+    });
+  });
+	
 	it('can run locks with different keys concurrently', (testDone) => {
 		const lock = new BetterLock();
 		const startedAt = new Date();
