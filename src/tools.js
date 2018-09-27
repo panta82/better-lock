@@ -6,6 +6,10 @@ function isFunction(val) {
 	return typeof val === 'function';
 }
 
+function isObject(val) {
+	return typeof val === 'object';
+}
+
 function isNumber(val, includeInfinity = false, includeNaN = false) {
 	if (typeof val !== 'number') {
 		return false;
@@ -25,15 +29,15 @@ function makeLog(name, doLog) {
 	if (!doLog) {
 		return noop;
 	}
-	
+
 	if (doLog === true) {
 		doLog = console.log.bind(console);
 	}
-	
+
 	if (name) {
 		name = '[' + name + '] ';
 	}
-	
+
 	return function log(msg) {
 		if (name) {
 			doLog(name + msg);
@@ -61,8 +65,8 @@ function callbackWithPromise() {
 module.exports = {
 	isString,
 	isFunction,
+	isObject,
 	isNumber,
-	noop,
 	makeLog,
-	callbackWithPromise
+	callbackWithPromise,
 };

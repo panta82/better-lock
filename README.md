@@ -27,6 +27,27 @@ npm install --save better-lock
 ##### Minimal example
 
 ```javascript
+const lock = new BetterLock();
+//...
+lock
+    .acquire(() => {
+        // just make sure you return this promise chain
+        return doSomethingThatReturnsPromise()
+            .then(() => {
+                 return 'result';
+            });
+    })
+    .then(res => {
+        console.log(res); // result		
+    })
+    .catch(err => {
+        // Either your od BetterLock's error 
+    });
+```
+
+##### Minimal example with callbacks
+
+```javascript
 const BetterLock = require('better-lock');
 
 const lock = new BetterLock();
@@ -44,27 +65,6 @@ lock.acquire(done => {
         console.error(err); 
     }
 });
-```
-
-##### The same thing with promises
-
-```javascript
-const lock = new BetterLock();
-//...
-lock
-    .acquire(() => {
-        // just make sure you return this promise chain
-        return doSomethingThatReturnsPromise()
-            .then(() => {
-                 return 'result';
-            });
-    })
-    .then(res => {
-        console.log(res); // result		
-    })
-    .catch(err => {
-        // Either your od BetterLock's error 
-    });
 ```
 
 ##### Kitchen sink example
@@ -127,13 +127,25 @@ I have kept the following good aspects of async-lock:
 I have decided to not implement the following features:
 
 - Domain reentrancy (domains are going away)
-- Acquire multiple keys (never needed it, needs to be smarter about deadlocks anyway)
+- Acquire multiple keys (TODO)
 
 **NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
 
 ### Options
 
-All available options with defaults can be seen [here](src/consts.js).
+Most commonly used options are:
+
+- `wait_timeout`  
+  How long can jobs wait in queue before timing out (ms). Null to disable timeout.
+
+- `execution_timeout`  
+  How long can a job be executing before timing out (ms). Null to disable timeout.
+  If you do that, though, and you have a swallowed callback, the lock can remain locked permanently.
+
+- `queue_size`  
+  Max queue size for waiting jobs.
+
+More fiddly options with comments can be seen in [here](src/options.js).
 
 Options are provided when you construct a lock instance. Some option overrides are also available when you call `lock.acquire`, as the last argument (namely, timeouts).
 
@@ -145,14 +157,6 @@ lock.acquire(executor, callback, {
 
 Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`). 
 
-During runtime, you can change the defaults like this:
-
-```javascript
-const BetterLock = require('better-lock');
-
-BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
-```
-
 ### More usage examples
 
 You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.js);
@@ -162,6 +166,7 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 Date|Change
 ----|------
 2018/06/04|You can now use a Number as job name
+2019/09/27|Code reformat, better pattern for loading options. No feature upgrades.
 
 ### Development
 

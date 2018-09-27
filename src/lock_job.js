@@ -8,19 +8,17 @@ class LockJob {
 		this.enqueued_at = new Date();
 		this.executed_at = null;
 		this.ended_at = null;
-		
+
 		this.wait_timeout = undefined;
 		this.wait_timeout_ptr = null;
 		this.execution_timeout = undefined;
 		this.execution_timeout_ptr = null;
-		
+
 		this.incoming_stack = null;
 	}
-	
+
 	toString() {
-		return this.key
-			? `Job "${this.key}" (#${this.id})`
-			: `Job #${this.id}`;
+		return this.key ? `Job "${this.key}" (#${this.id})` : `Job #${this.id}`;
 	}
 }
 

@@ -6,10 +6,16 @@ class BetterLockError extends Error {
 			super(message);
 		}
 		this.lock_name = name;
-		
+
 		if (incomingStack) {
-			const withoutFirstLine = incomingStack.split('\n').slice(1).join('\n');
-			this.stack = this.stack + '\n    --------------------------------------------------------------------------------\n' + withoutFirstLine;
+			const withoutFirstLine = incomingStack
+				.split('\n')
+				.slice(1)
+				.join('\n');
+			this.stack =
+				this.stack +
+				'\n    --------------------------------------------------------------------------------\n' +
+				withoutFirstLine;
 		}
 	}
 }
@@ -62,5 +68,5 @@ module.exports = {
 	InvalidArgumentError,
 	WaitTimeoutError,
 	ExecutionTimeoutError,
-	QueueOverflowError
+	QueueOverflowError,
 };
