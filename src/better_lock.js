@@ -12,10 +12,14 @@ const {
 
 /**
  * Create a better lock object.
- * @param {BetterLockOptions} options
+ * @param {BetterLockOptions} [options]
  */
 function BetterLock(options = undefined) {
-	options = new BetterLockOptions(options);
+	if (options) {
+		options = new BetterLockOptions(Object.assign({}, BetterLock.DEFAULT_OPTIONS, options));
+	} else {
+		options = BetterLock.DEFAULT_OPTIONS;
+	}
 
 	if (!(options.queue_size === null || options.queue_size >= 0)) {
 		throw new InvalidArgumentError(
@@ -231,10 +235,10 @@ function BetterLock(options = undefined) {
 			lockDone(err);
 		}
 
-		if (promise instanceof Promise) {
-			promise.then(res => lockDone(null, res)).catch(err => lockDone(err));
+		if (options.promise_tester(promise)) {
+			promise.then(res => lockDone(null, res), err => lockDone(err));
 		} else {
-			// Promise is just the result value we don't have to wait
+			// "promise" is just some random value. We don't have to wait
 			lockDone(null, promise);
 		}
 
@@ -310,6 +314,9 @@ function BetterLock(options = undefined) {
 		setImmediate(update, queue);
 	}
 }
+
+/** @type {BetterLockOptions} */
+BetterLock.DEFAULT_OPTIONS = new BetterLockOptions();
 
 module.exports = {
 	BetterLock,

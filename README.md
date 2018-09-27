@@ -155,7 +155,15 @@ lock.acquire(executor, callback, {
 });
 ```
 
-Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`). 
+Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`).
+
+During runtime, you can change the defaults like this:
+
+```javascript
+const BetterLock = require('better-lock');
+
+BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
+``` 
 
 ### More usage examples
 
@@ -167,6 +175,7 @@ Date|Change
 ----|------
 2018/06/04|You can now use a Number as job name
 2019/09/27|Code reformat, better pattern for loading options. No feature upgrades.
+2019/09/27|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
 
 ### Development
 

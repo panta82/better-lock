@@ -138,6 +138,57 @@ describe('BetterLock', () => {
 		}
 	});
 
+	it('can change default options', () => {
+		const defaultOptions = BetterLock.DEFAULT_OPTIONS;
+		BetterLock.DEFAULT_OPTIONS = new BetterLock.Options({
+			name: 'MyLock',
+		});
+
+		let seq = 0;
+		const expected = [
+			'[MyLock] Enqueued Job "My test" (#10)',
+			'[MyLock] Executing Job "My test" (#10)',
+			'[MyLock] Done called for Job "My test" (#10)',
+		];
+
+		const lock = new BetterLock({
+			log,
+		});
+
+		BetterLock.LockJob._lastId = 9;
+
+		return lock.acquire('My test', waitArgs(100)).finally(() => {
+			BetterLock.DEFAULT_OPTIONS = defaultOptions;
+		});
+
+		function log(msg) {
+			expect(msg).to.equal(expected[seq]);
+			seq++;
+		}
+	});
+
+	it('will accept custom promise tester', () => {
+		const lock = new BetterLock({
+			promise_tester: p => p.isPromise === true,
+		});
+
+		let called = false;
+
+		return Promise.all([
+			lock.acquire(() => {
+				return {
+					then: resolve => {
+						called = true;
+						resolve();
+					},
+					isPromise: true,
+				};
+			}),
+		]).finally(() => {
+			expect(called).to.be.true;
+		});
+	});
+
 	it('will validate options', () => {
 		testArgument('queue_size', -1);
 		testArgument('queue_size', 'large');

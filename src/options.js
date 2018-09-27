@@ -68,6 +68,14 @@ class BetterLockOptions {
 		 */
 		this.extend_stack_traces = true;
 
+		/**
+		 * Function that detects whether value returned by executor is a promise.
+		 * This will ducktype-sniff the returned value. Depending on your Promise library of choice,
+		 * you might want to tighten or loosen this bit.
+		 * @type {function(p)}
+		 */
+		this.promise_tester = p => p && typeof p.then === 'function';
+
 		Object.assign(this, source);
 
 		// Apply option aliases
