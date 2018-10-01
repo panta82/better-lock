@@ -9,8 +9,8 @@ A (better) node.js lock library.
 - Named and keyed locks
 - Queue and execution timeouts
 - Queue size limit
+- Promise and callback interfaces
 - Extended stack traces
-- Optional promise interface
 - JSDoc annotations
 - Good error messages
 - Unit tests, good code coverage
@@ -171,11 +171,12 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 ### Change log
 
-Date|Change
-----|------
-2018/06/04|You can now use a Number as job name
-2019/09/27|Code reformat, better pattern for loading options. No feature upgrades.
-2019/09/27|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
+Date|Version|Change
+----|-------|------
+2018/06/04|0.1.1|You can now use a Number as job name
+2019/09/27|0.2.0|Code reformat, better pattern for loading options. No feature upgrades.
+2019/09/27|0.2.1|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
+2019/10/01|0.3.0|Can abort jobs waiting in queue.
 
 ### Development
 

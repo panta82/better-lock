@@ -417,6 +417,63 @@ describe('BetterLock', () => {
 		})();
 	});
 
+	it('can abort specific key', done => {
+		const lock = new BetterLock();
+
+		let noCallCount = 0;
+		const noCall = () => {
+			noCallCount++;
+		};
+
+		let result1 = undefined;
+		lock.acquire(waitArgs(25, null, 'a')).then(res => {
+			result1 = res;
+		}, noCall);
+
+		setTimeout(() => {
+			lock.acquire(noCall).then(noCall, err => {
+				expect(err).to.be.instanceOf(BetterLock.JobAbortedError);
+			});
+		}, 5);
+
+		setTimeout(() => {
+			lock.abort();
+		}, 10);
+
+		setTimeout(() => {
+			expect(noCallCount).to.equal(0);
+			expect(result1).to.equal('a');
+
+			done();
+		}, 40);
+	});
+
+	it('can abort all', () => {
+		const lock = new BetterLock();
+
+		let noCallCount = 0;
+		const noCall = () => {
+			noCallCount++;
+		};
+
+		let cbCount = 0;
+		const callback = err => {
+			cbCount++;
+			expect(err).to.be.instanceOf(BetterLock.JobAbortedError);
+		};
+
+		lock.acquire(noCall, callback);
+		lock.acquire('a', noCall, callback);
+		lock.acquire('b', noCall, callback);
+
+		lock.abortAll();
+
+		expect(lock.canAcquire()).to.be.true;
+		expect(lock.canAcquire('a')).to.be.true;
+		expect(lock.canAcquire('b')).to.be.true;
+		expect(cbCount).to.equal(3);
+	});
+
 	describe('if used with promises', () => {
 		it('will return a viable promise if called without callback', testDone => {
 			const lock = new BetterLock();

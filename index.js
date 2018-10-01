@@ -11,6 +11,7 @@ BetterLock.InvalidArgumentError = errors.InvalidArgumentError;
 BetterLock.WaitTimeoutError = errors.WaitTimeoutError;
 BetterLock.ExecutionTimeoutError = errors.ExecutionTimeoutError;
 BetterLock.QueueOverflowError = errors.QueueOverflowError;
+BetterLock.JobAbortedError = errors.JobAbortedError;
 
 BetterLock.LockJob = LockJob;
 BetterLock.Options = options.BetterLockOptions;

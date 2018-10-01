@@ -8,6 +8,7 @@ const {
 	WaitTimeoutError,
 	ExecutionTimeoutError,
 	QueueOverflowError,
+	JobAbortedError,
 } = require('./errors');
 
 /**
@@ -48,6 +49,8 @@ function BetterLock(options = undefined) {
 		/** @lends {BetterLock.prototype} */ {
 			canAcquire,
 			acquire,
+			abort,
+			abortAll,
 		}
 	);
 
@@ -137,6 +140,7 @@ function BetterLock(options = undefined) {
 		return callback.promise;
 	}
 
+	/** @return LockJob[] */
 	function getQueue(key) {
 		if (key === undefined) {
 			return _noKeyQueue;
@@ -312,6 +316,34 @@ function BetterLock(options = undefined) {
 		job.callback.apply(null, callbackArgs);
 
 		setImmediate(update, queue);
+	}
+
+	/**
+	 * Abort all jobs for a given key (or from the default job queue, if no key is given).
+	 * Job executors will not be called. Callbacks will be called with JobAbortedError.
+	 * Currently executing job will not be interrupted.
+	 * @param [key]
+	 */
+	function abort(key = undefined) {
+		const queue = getQueue(key);
+		if (queue) {
+			queue.slice().forEach(job => {
+				if (queue.executing !== job) {
+					endJob(job, [new JobAbortedError(options.name, job)]);
+				}
+			});
+		}
+	}
+
+	/**
+	 * Abort all pending jobs from all queues.
+	 * Currently executing jobs will not be interrupted.
+	 */
+	function abortAll() {
+		abort(undefined);
+		for (const key in _keyQueues) {
+			abort(key);
+		}
 	}
 }
 
