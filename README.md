@@ -112,12 +112,12 @@ function processFile(filename, callback) {
   Create a new instance of `BetterLock`. Options are optional. See below for details.
 
 - `BetterLock.acquire([key], executor, [callback], [jobOptions])`  
-  The main method you want to hold. For each `key`, given `executor` will be called only one at a time.
-  - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns.
+  The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. Returns a promise that will be resolved with whatever `executor` returns.
+  - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns. Eg. this might be a database record id or filename.
   - `executor`: Function that will be called within the lock. This function should have one of two forms.
     1. *Without arguments*, in which case it should return a promise. Lock will remain locked until the promise resolves.
     2. *With single `done`* argument. In this case, the executor should call `done(err, res)` once it is done. Arguments passed to done will be passed to the callback of the lock.
-  - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along.
+  - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along. This can be used in addition to the returned promise.
   - `jobOptions`: An object in the same format as options given to the lock, that will serve as overrides for this particular job. This, for example, allows you to change the wait timeout for a single job.
 
 - `BetterLock.canAcquire([key])`  
@@ -201,7 +201,7 @@ Date|Version|Change
 2019/09/27|0.2.0|Code reformat, better pattern for loading options. No feature upgrades.
 2019/09/27|0.2.1|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
 2019/10/01|0.3.0|Can abort jobs waiting in queue.
-2019/10/01|0.3.1|Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested.
+2019/10/01|0.3.1|Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
 
 ### Development
 
