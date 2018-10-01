@@ -177,7 +177,7 @@ Date|Version|Change
 2019/09/27|0.2.0|Code reformat, better pattern for loading options. No feature upgrades.
 2019/09/27|0.2.1|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
 2019/10/01|0.3.0|Can abort jobs waiting in queue.
-2019/10/01|0.3.1|Tests should work again on node 0.8.x
+2019/10/01|0.3.1|Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested.
 
 ### Development
 
