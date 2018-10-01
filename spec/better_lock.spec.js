@@ -157,9 +157,14 @@ describe('BetterLock', () => {
 
 		BetterLock.LockJob._lastId = 9;
 
-		return lock.acquire('My test', waitArgs(100)).finally(() => {
-			BetterLock.DEFAULT_OPTIONS = defaultOptions;
-		});
+		return lock.acquire('My test', waitArgs(100)).then(
+			() => {
+				BetterLock.DEFAULT_OPTIONS = defaultOptions;
+			},
+			() => {
+				BetterLock.DEFAULT_OPTIONS = defaultOptions;
+			}
+		);
 
 		function log(msg) {
 			expect(msg).to.equal(expected[seq]);
@@ -184,7 +189,7 @@ describe('BetterLock', () => {
 					isPromise: true,
 				};
 			}),
-		]).finally(() => {
+		]).then(() => {
 			expect(called).to.be.true;
 		});
 	});
