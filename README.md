@@ -106,30 +106,29 @@ function processFile(filename, callback) {
 
 ```
 
-### Motivation
+### API
 
-I was using [async-lock](https://github.com/rogierschouten/async-lock) in a work project. Something was swallowing a callback in production. Not only did async-lock did nothing to prevent it, it was very spartan with its error messages.
+- `new BetterLock(options)`  
+  Create a new instance of `BetterLock`. Options are optional. See below for details.
 
-So, as a weekend project, I have decided to improve on `async-lock` it in the following ways:
+- `BetterLock.acquire([key], executor, [callback], [jobOptions])`  
+  The main method you want to hold. For each `key`, given `executor` will be called only one at a time.
+  - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns.
+  - `executor`: Function that will be called within the lock. This function should have one of two forms.
+    1. *Without arguments*, in which case it should return a promise. Lock will remain locked until the promise resolves.
+    2. *With single `done`* argument. In this case, the executor should call `done(err, res)` once it is done. Arguments passed to done will be passed to the callback of the lock.
+  - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along.
+  - `jobOptions`: An object in the same format as options given to the lock, that will serve as overrides for this particular job. This, for example, allows you to change the wait timeout for a single job.
 
-- Good error messages and log facility
-- Execution timeout
-- Extended stack traces (so when you get an error, you have a full stack trace of the original calling code)
-- JSDoc comments (helps if you're using an IDE)
+- `BetterLock.canAcquire([key])`  
+  Returns true if given key can be acquired.
 
-I have kept the following good aspects of async-lock:
+- `BetterLock.abort([key])`  
+  Abort all jobs for a given key (or from the default job queue, if no key is given). Job executors will not be called. Callbacks will be called with JobAbortedError. Currently executing job will not be interrupted.
 
-- Multiple keys per lock
-- Interface, with executor and the callback function
-- Promises
-- Timeout and queue limit
+- `BetterLock.abortAll()`  
+  Abort all jobs for all keys. This is suitable to be called during shutdown of your app.
 
-I have decided to not implement the following features:
-
-- Domain reentrancy (domains are going away)
-- Acquire multiple keys (TODO)
-
-**NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
 
 ### Options
 
@@ -168,6 +167,31 @@ BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
 ### More usage examples
 
 You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.js);
+
+### Motivation
+
+I was using [async-lock](https://github.com/rogierschouten/async-lock) in a work project. Something was swallowing a callback in production. Not only did async-lock did nothing to prevent it, it was very spartan with its error messages.
+
+So, as a weekend project, I have decided to improve on `async-lock` it in the following ways:
+
+- Good error messages and log facility
+- Execution timeout
+- Extended stack traces (so when you get an error, you have a full stack trace of the original calling code)
+- JSDoc comments (helps if you're using an IDE)
+
+I have kept the following good aspects of async-lock:
+
+- Multiple keys per lock
+- Interface, with executor and the callback function
+- Promises
+- Timeout and queue limit
+
+I have decided to not implement the following features:
+
+- Domain reentrancy (domains are going away)
+- Acquire multiple keys (TODO)
+
+**NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
 
 ### Change log
 
