@@ -32,15 +32,16 @@ const lock = new BetterLock();
 //...
 lock
   .acquire(() => {
-    // just make sure you return this promise chain
+    // Inside the lock. Just make sure you return a promise
     return doSomethingThatReturnsPromise()
       .then(() => {
-         return 'result';
+         return 'my result';
       });
   })
   .then(
     res => {
-      console.log(res); // result		
+      // Outside the lock. You will get whatever the promise chain has returned.
+      console.log(res); // my result		
     },
     err => {
       // Either your or BetterLock's error 
@@ -55,7 +56,7 @@ const lock = new BetterLock({
   log: winstonLogger.debug,          // Give it your logger with appropeiate level
   wait_timeout: 1000 * 30,           // Max 30 sec wait in queue
   execution_timeout: 1000 * 60 * 5,  // Time out after 5 minutes
-   queue_size: 1,                     // At most one pending job
+  queue_size: 1,                     // At most one pending job
 });
 
 function processFile(filename, callback) {
@@ -124,10 +125,10 @@ lock.acquire(done => {
     // Call done when done
     done(err);
   });
-}, (err) => {
+}, (err, result) => {
   // Outside the lock
   if (err) {
-    // Either your od BetterLock's error
+    // Either your or BetterLock's error
     console.error(err); 
   }
 });
