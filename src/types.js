@@ -1,5 +1,3 @@
-const { assign } = require('./tools');
-
 /**
  * Class that represents one scheduled job and its state. This is created every time user calls "acquire"
  */
