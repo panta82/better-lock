@@ -8,7 +8,7 @@ describe('BetterLock', () => {
 		const lock = new BetterLock();
 		const startedAt = new Date();
 		
-		lock.acquire(waitArgs(250, 'a', 1, [new Error()]), (a1, a2, a3) => {
+		lock.acquire(waitWorker(250, 'a', 1, [new Error()]), (a1, a2, a3) => {
 			expect(new Date() - startedAt).to.be.within(245, 300);
 			expect(a1).to.equal('a');
 			expect(a2).to.equal(1);
@@ -21,7 +21,7 @@ describe('BetterLock', () => {
     const lock = new BetterLock();
     
     let doneFirst = false;
-    lock.acquire(15, waitArgs(20), () => {
+    lock.acquire(15, waitWorker(20), () => {
       doneFirst = true;
       
       testDone();
@@ -43,22 +43,22 @@ describe('BetterLock', () => {
 		const startedAt = new Date();
 		let cbCount = 0;
 		
-		lock.acquire(undefined, waitArgs(250, 'a'), (res) => {
+		lock.acquire(undefined, waitWorker(250, 'a'), (res) => {
 			expect(res).to.equal('a');
 			cb();
 		});
 		
-		lock.acquire('', waitArgs(250, 'b'), (res) => {
+		lock.acquire('', waitWorker(250, 'b'), (res) => {
 			expect(res).to.equal('b');
 			cb();
 		});
 		
-		lock.acquire('Proper key', waitArgs(250, 'c'), (res) => {
+		lock.acquire('Proper key', waitWorker(250, 'c'), (res) => {
 			expect(res).to.equal('c');
 			cb();
 		});
 		
-		lock.acquire('proper key', waitArgs(250, 'd'), (res) => {
+		lock.acquire('proper key', waitWorker(250, 'd'), (res) => {
 			expect(res).to.equal('d');
 			cb();
 		});
@@ -83,13 +83,13 @@ describe('BetterLock', () => {
 		
 		let called1 = false;
 		
-		lock.acquire(waitArgs(50, null, 'ok1'), (err, res) => {
+		lock.acquire(waitWorker(50, null, 'ok1'), (err, res) => {
 			expect(err).to.be.null;
 			expect(res).to.equal('ok1');
 			called1 = true;
 		});
 		
-		lock.acquire(waitArgs(150, null, 'ok2'), (err, res) => {
+		lock.acquire(waitWorker(150, null, 'ok2'), (err, res) => {
 			expect(err).to.be.null;
 			expect(res).to.equal('ok2');
 			expect(called1).to.be.true;
@@ -103,8 +103,8 @@ describe('BetterLock', () => {
 		expect(lock.canAcquire()).to.be.true;
 		expect(lock.canAcquire('test')).to.be.true;
 		
-		lock.acquire(waitArgs(10), () => {});
-		lock.acquire('test', waitArgs(30), () => {
+		lock.acquire(waitWorker(10), () => {});
+		lock.acquire('test', waitWorker(30), () => {
 			expect(lock.canAcquire()).to.be.true;
 			expect(lock.canAcquire('test')).to.be.true;
 			
@@ -129,7 +129,7 @@ describe('BetterLock', () => {
 		});
 		
 		BetterLock.LockJob._lastId = 9;
-		lock.acquire('My test', waitArgs(100), () => {
+		lock.acquire('My test', waitWorker(100), () => {
 			testDone();
 		});
 		
@@ -166,20 +166,20 @@ describe('BetterLock', () => {
 		
 		let cbCount = 0;
 		
-		lock.acquire(waitArgs(75, null, 'ok1'), (err, res) => {
+		lock.acquire(waitWorker(75, null, 'ok1'), (err, res) => {
 			expect(err).to.be.null;
 			expect(res).to.equal('ok1');
 			cbCount++;
 		});
 		
-		lock.acquire(waitArgs(200000, null, 'ok2'), (err, res) => {
+		lock.acquire(waitWorker(200000, null, 'ok2'), (err, res) => {
 			expect(err).to.be.instanceOf(BetterLock.WaitTimeoutError);
 			cbCount++;
 		});
 		
 		setTimeout(() => {
 			// Enqueue after some time, this one should run
-			lock.acquire(waitArgs(50, null, 'ok3'), (err, res) => {
+			lock.acquire(waitWorker(50, null, 'ok3'), (err, res) => {
 				expect(err).to.be.null;
 				expect(res).to.equal('ok3');
 				expect(cbCount).to.equal(2);
@@ -196,13 +196,13 @@ describe('BetterLock', () => {
 		});
 		
 		let cbCount = 0;
-		lock.acquire(waitArgs(100, 'wont', 'be', 'used'), (err) => {
+		lock.acquire(waitWorker(100, 'wont', 'be', 'used'), (err) => {
 			expect(err).to.be.instanceOf(BetterLock.ExecutionTimeoutError);
 			cbCount++;
 		});
 		
 		setTimeout(() => {
-			lock.acquire(waitArgs(50, null, 'ok'), (err, res) => {
+			lock.acquire(waitWorker(50, null, 'ok'), (err, res) => {
 				expect(cbCount).to.equal(1);
 				expect(err).to.be.null;
 				expect(res).to.equal('ok');
@@ -221,24 +221,24 @@ describe('BetterLock', () => {
 			});
 			
 			let cbCount = 0;
-			lock.acquire(waitArgs(25, 1), (arg) => {
+			lock.acquire(waitWorker(25, 1), (arg) => {
 				// The executing one
 				cbCount++;
 				expect(cbCount).to.equal(2);
 				expect(arg).to.equal(1);
 			});
-			lock.acquire(waitArgs(5, 2), (err) => {
+			lock.acquire(waitWorker(5, 2), (err) => {
 				// First in queue. The one to be kicked out
 				cbCount++;
 				expect(cbCount).to.equal(1);
 				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
 			});
-			lock.acquire(waitArgs(5, 3), (arg) => {
+			lock.acquire(waitWorker(5, 3), (arg) => {
 				cbCount++;
 				expect(cbCount).to.equal(3);
 				expect(arg).to.equal(3);
 			});
-			lock.acquire(waitArgs(5, 4), (arg) => {
+			lock.acquire(waitWorker(5, 4), (arg) => {
 				// This one will trigger the kicking out
 				cbCount++;
 				expect(cbCount).to.equal(4);
@@ -256,25 +256,25 @@ describe('BetterLock', () => {
 			});
 			
 			let cbCount = 0;
-			lock.acquire(waitArgs(25, 1), (arg) => {
+			lock.acquire(waitWorker(25, 1), (arg) => {
 				// The executing one
 				cbCount++;
 				expect(cbCount).to.equal(2);
 				expect(arg).to.equal(1);
 			});
-			lock.acquire(waitArgs(5, 2), (arg) => {
+			lock.acquire(waitWorker(5, 2), (arg) => {
 				cbCount++;
 				expect(cbCount).to.equal(3);
 				expect(arg).to.equal(2);
 				
 			});
-			lock.acquire(waitArgs(5, 3), (err) => {
+			lock.acquire(waitWorker(5, 3), (err) => {
 				// The last in queue before adding the overflow job. The one to be kicked out
 				cbCount++;
 				expect(cbCount).to.equal(1);
 				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
 			});
-			lock.acquire(waitArgs(5, 4), (arg) => {
+			lock.acquire(waitWorker(5, 4), (arg) => {
 				// This one will trigger the kicking out
 				cbCount++;
 				expect(cbCount).to.equal(4);
@@ -292,25 +292,25 @@ describe('BetterLock', () => {
 			});
 			
 			let cbCount = 0;
-			lock.acquire(waitArgs(25, 1), (arg) => {
+			lock.acquire(waitWorker(25, 1), (arg) => {
 				// The executing one
 				cbCount++;
 				expect(cbCount).to.equal(2);
 				expect(arg).to.equal(1);
 			});
-			lock.acquire(waitArgs(5, 2), (arg) => {
+			lock.acquire(waitWorker(5, 2), (arg) => {
 				cbCount++;
 				expect(cbCount).to.equal(3);
 				expect(arg).to.equal(2);
 				
 			});
-			lock.acquire(waitArgs(5, 3), (arg) => {
+			lock.acquire(waitWorker(5, 3), (arg) => {
 				cbCount++;
 				expect(cbCount).to.equal(4);
 				expect(arg).to.equal(3);
 				testDone();
 			});
-			lock.acquire(waitArgs(5, 4), (err) => {
+			lock.acquire(waitWorker(5, 4), (err) => {
 				// This one will trigger the kicking out. And it will be the one kicked out
 				cbCount++;
 				expect(cbCount).to.equal(1);
@@ -327,14 +327,14 @@ describe('BetterLock', () => {
 			});
 			
 			let cbCount = 0;
-			lock.acquire(waitArgs(25, 1), (arg) => {
+			lock.acquire(waitWorker(25, 1), (arg) => {
 				// The executing one
 				cbCount++;
 				expect(cbCount).to.equal(2);
 				expect(arg).to.equal(1);
 				testDone();
 			});
-			lock.acquire(waitArgs(5, 2), (err) => {
+			lock.acquire(waitWorker(5, 2), (err) => {
 				cbCount++;
 				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
 				expect(cbCount).to.equal(1);
@@ -351,18 +351,18 @@ describe('BetterLock', () => {
 				overflow_strategy: BetterLock.OVERFLOW_STRATEGIES.reject
 			});
 			
-			lock.acquire(waitArgs(25), (err) => {
+			lock.acquire(waitWorker(25), (err) => {
 				expect(err).to.be.instanceOf(BetterLock.ExecutionTimeoutError);
 				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
 				testDone();
 			});
 			
-			lock.acquire(waitArgs(120), (err) => {
+			lock.acquire(waitWorker(120), (err) => {
 				expect(err).to.be.instanceOf(BetterLock.WaitTimeoutError);
 				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
 			});
 			
-			lock.acquire(waitArgs(120), (err) => {
+			lock.acquire(waitWorker(120), (err) => {
 				expect(err).to.be.instanceOf(BetterLock.QueueOverflowError);
 				expect(err.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
 			});
@@ -376,11 +376,11 @@ describe('BetterLock', () => {
 			const variants = [];
 
 			variants.push(
-				lock.acquire(waitArgs(0, null, 'success'))
+				lock.acquire(waitWorker(0, null, 'success'))
 					.then(res => {
 						expect(res).to.equal('success');
 						
-						return lock.acquire(waitArgs(0, 'fail'))
+						return lock.acquire(waitWorker(0, 'fail'))
 							.catch(err => {
 								expect(err).to.equal('fail');
 								return 1;
@@ -389,11 +389,11 @@ describe('BetterLock', () => {
 			);
 			
 			variants.push(
-				lock.acquire('with key', waitArgs(0, null, 'success'))
+				lock.acquire('with key', waitWorker(0, null, 'success'))
 					.then(res => {
 						expect(res).to.equal('success');
 						
-						return lock.acquire('with key', waitArgs(0, 'fail'))
+						return lock.acquire('with key', waitWorker(0, 'fail'))
 							.catch(err => {
 								expect(err).to.equal('fail');
 								return 2;
@@ -402,11 +402,11 @@ describe('BetterLock', () => {
 			);
 			
 			variants.push(
-				lock.acquire('with key and options', waitArgs(0, null, 'success'), {})
+				lock.acquire('with key and options', waitWorker(0, null, 'success'), {})
 					.then(res => {
 						expect(res).to.equal('success');
 						
-						return lock.acquire('with key and options', waitArgs(0, 'fail'))
+						return lock.acquire('with key and options', waitWorker(0, 'fail'))
 							.catch(err => {
 								expect(err).to.equal('fail');
 								return 3;
@@ -415,11 +415,11 @@ describe('BetterLock', () => {
 			);
 			
 			variants.push(
-				lock.acquire(/* just options */ waitArgs(0, null, 'success'), {})
+				lock.acquire(/* just options */ waitWorker(0, null, 'success'), {})
 					.then(res => {
 						expect(res).to.equal('success');
 						
-						return lock.acquire(waitArgs(0, 'fail'), {})
+						return lock.acquire(waitWorker(0, 'fail'), {})
 							.catch(err => {
 								expect(err).to.equal('fail');
 								return 4;
@@ -476,14 +476,38 @@ describe('BetterLock', () => {
 				testDone();
 			});
 		});
+		
+		describe('when using in multi-lock mode', () => {
+			it('can lock on multiple keys in a basic case', () => {
+				const lock = new BetterLock();
+				const startedAt = new Date();
+				
+				return Promise.all([
+					lock.acquire('a', waitWorker(50, 1)),
+					waitPromise(35).then(() => lock.acquire('b', waitWorker(50, 2))),
+					waitPromise(15).then(() => lock.acquire(['a', 'b'], waitWorker(50, 3)))
+				]).then(sequence => {
+					expect(sequence).to.eql([1, 3, 2]);
+					expect(new Date() - startedAt).to.be.within(145, 180);
+				});
+			});
+		});
 	});
 	
 });
 
-function waitArgs(wait, ...args) {
+function waitWorker(ms, ...args) {
 	return function (done) {
 		setTimeout(() => {
 			done.apply(null, args);
-		}, wait);
+		}, ms);
 	};
+}
+
+function waitPromise(ms, result) {
+	return new Promise((resolve) => {
+		setTimeout(() => {
+			resolve(result);
+		}, ms);
+	});
 }
