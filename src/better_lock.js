@@ -7,11 +7,12 @@ const {
 	WaitTimeoutError,
 	ExecutionTimeoutError,
 	QueueOverflowError,
+	JobAbortedError,
 } = require('./errors');
 const { BetterLockOptions, LockJobOptions, DEFAULT_OPTIONS } = require('./options');
 
 /**
- * BetterLock constructor.
+ * Create a better lock object.
  * @constructor
  * @param {BetterLockOptions} options
  */
@@ -28,6 +29,8 @@ function BetterLock(options) {
 		/** @lends {BetterLock.prototype} */ {
 			canAcquire,
 			acquire,
+			abort,
+			abortAll,
 		}
 	);
 
@@ -217,18 +220,8 @@ function BetterLock(options) {
 	 */
 	function executeJob(job) {
 		log(`Executing ${job}`);
-		job.executed_at = new Date();
 
-		for (let i = 0; i < job.keys.length; i++) {
-			const queue = getQueue(job.keys[i]);
-			if (queue.active !== job) {
-				// This should never happen
-				return endJob(job, [
-					new BetterLockInternalError(options.name, `Corrupted wait queue state for ${queue.key}`),
-				]);
-			}
-		}
-
+		// Clear wait timeout
 		clearTimeout(job.wait_timeout_id);
 		job.wait_timeout_id = null;
 
@@ -236,6 +229,28 @@ function BetterLock(options) {
 		// to ever interfere with the code calling acquire().
 
 		setImmediate(() => {
+			// Make sure job hasn't been ended in the meantime
+			if (job.executed_at || job.ended_at) {
+				return;
+			}
+
+			// Validate this job is holding all queues it needs
+			for (let i = 0; i < job.keys.length; i++) {
+				const queue = getQueue(job.keys[i]);
+				if (queue.active !== job) {
+					// This should never happen
+					return endJob(job, [
+						new BetterLockInternalError(
+							options.name,
+							`Corrupted wait queue state for ${queue.key}`
+						),
+					]);
+				}
+			}
+
+			// Mark job as having started executing
+			job.executed_at = new Date();
+
 			if (tools.isNumber(job.options.execution_timeout)) {
 				job.execution_timeout_id = setTimeout(
 					onExecutionTimeout.bind(null, job),
@@ -259,10 +274,11 @@ function BetterLock(options) {
 			}
 
 			// Promise sniffing
+			// TODO if (options.promise_tester(promise)) {
 			if (executorResult && executorResult.then && executorResult.catch) {
 				executorResult.then(res => lockDone(null, res), err => lockDone(err));
 			} else {
-				// Promise is just the result value we don't have to wait
+				// "promise" is just some random value. We don't have to wait
 				lockDone(null, executorResult);
 			}
 
@@ -341,6 +357,35 @@ function BetterLock(options) {
 		} finally {
 			// Whatever happens, schedule a queue update
 			setImmediate(update, queuesToUpdate);
+		}
+	}
+
+	/**
+	 * Abort all jobs for a given key (or from the default job queue, if no key is given).
+	 * Job executors will not be called. Callbacks will be called with JobAbortedError.
+	 * Currently executing job will not be interrupted.
+	 * @param [key]
+	 */
+	function abort(key = undefined) {
+		const queue = getQueue(key);
+		queue.jobs.slice().forEach(job => {
+			endJob(job, [new JobAbortedError(options.name, job)]);
+		});
+		if (queue.active && !queue.active.executed_at) {
+			// If we have a job holding this queue that hasn't been executed yet, abort it as well
+			endJob(queue.active, [new JobAbortedError(options.name, queue.active)]);
+		}
+	}
+
+	/**
+	 * Abort all pending jobs from all queues.
+	 * Currently executing jobs will not be interrupted.
+	 */
+	function abortAll() {
+		abort(undefined);
+		for (const key in _queues) {
+			// noinspection JSUnfilteredForInLoop
+			abort(key);
 		}
 	}
 }

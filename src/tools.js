@@ -6,6 +6,10 @@ function isFunction(val) {
 	return typeof val === 'function';
 }
 
+function isObject(val) {
+	return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
 function isNumber(val, includeInfinity = false, includeNaN = false) {
 	if (typeof val !== 'number') {
 		return false;
@@ -21,10 +25,6 @@ function isNumber(val, includeInfinity = false, includeNaN = false) {
 
 function isArray(val) {
 	return Array.isArray(val);
-}
-
-function isObject(val) {
-	return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
 
 function noop() {}
@@ -115,9 +115,9 @@ function assign(target, sources, aliases) {
 module.exports = {
 	isString,
 	isFunction,
+	isObject,
 	isNumber,
 	isArray,
-	isObject,
 	noop,
 	makeLog,
 	callbackWithPromise,

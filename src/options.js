@@ -4,6 +4,7 @@ const ALIASES = {
 	waitTimeout: 'wait_timeout',
 	executionTimeout: 'execution_timeout',
 	queueSize: 'queue_size',
+	overflowStrategy: 'overflow_strategy',
 	extendStackTraces: 'extend_stack_traces',
 };
 
@@ -48,6 +49,14 @@ class BetterLockOptions {
 		 * @type {boolean}
 		 */
 		this.extend_stack_traces = undefined;
+
+		/**
+		 * Function that detects whether value returned by executor is a promise.
+		 * This will ducktype-sniff the returned value. Depending on your Promise library of choice,
+		 * you might want to tighten or loosen this bit.
+		 * @type {function(p)}
+		 */
+		this.promise_tester = p => p && typeof p.then === 'function';
 
 		this.assign(sources);
 	}

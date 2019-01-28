@@ -63,6 +63,13 @@ class QueueOverflowError extends BetterLockError {
 	}
 }
 
+class JobAbortedError extends BetterLockError {
+	constructor(name, job) {
+		super(name, `${job} has been aborted by the user`, job.incoming_stack);
+		this.job = job;
+	}
+}
+
 module.exports = {
 	BetterLockError,
 	BetterLockInternalError,
@@ -70,4 +77,5 @@ module.exports = {
 	WaitTimeoutError,
 	ExecutionTimeoutError,
 	QueueOverflowError,
+	JobAbortedError,
 };

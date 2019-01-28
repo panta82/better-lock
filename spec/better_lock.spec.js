@@ -138,6 +138,62 @@ describe('BetterLock', () => {
 		}
 	});
 
+	it('can change default options', () => {
+		const defaultOptions = BetterLock.DEFAULT_OPTIONS;
+		BetterLock.DEFAULT_OPTIONS = new BetterLock.Options({
+			name: 'MyLock',
+		});
+
+		let seq = 0;
+		const expected = [
+			'[MyLock] Enqueued Job #10 [My test]',
+			'[MyLock] Executing Job #10 [My test]',
+			'[MyLock] Done called for Job #10 [My test]',
+		];
+
+		const lock = new BetterLock({
+			log,
+		});
+
+		BetterLock.LockJob._lastId = 9;
+
+		return lock.acquire('My test', waitWorker(100)).then(
+			() => {
+				BetterLock.DEFAULT_OPTIONS = defaultOptions;
+			},
+			() => {
+				BetterLock.DEFAULT_OPTIONS = defaultOptions;
+			}
+		);
+
+		function log(msg) {
+			expect(msg).to.equal(expected[seq]);
+			seq++;
+		}
+	});
+
+	it('will accept custom promise tester', () => {
+		const lock = new BetterLock({
+			promise_tester: p => p.isPromise === true,
+		});
+
+		let called = false;
+
+		return Promise.all([
+			lock.acquire(() => {
+				return {
+					then: resolve => {
+						called = true;
+						resolve();
+					},
+					isPromise: true,
+				};
+			}),
+		]).then(() => {
+			expect(called).to.be.true;
+		});
+	});
+
 	it('jobs will timeout after waiting in queue for too long', testDone => {
 		const lock = new BetterLock({
 			wait_timeout: 50,
@@ -265,6 +321,63 @@ describe('BetterLock', () => {
 				expect(err3.stack.indexOf('colorfulFunctionName')).to.be.gte(0);
 			});
 		})();
+	});
+
+	it('can abort specific key', done => {
+		const lock = new BetterLock();
+
+		let noCallCount = 0;
+		const noCall = () => {
+			noCallCount++;
+		};
+
+		let result1 = undefined;
+		lock.acquire(waitWorker(25, null, 'a')).then(res => {
+			result1 = res;
+		}, noCall);
+
+		setTimeout(() => {
+			lock.acquire(noCall).then(noCall, err => {
+				expect(err).to.be.instanceOf(BetterLock.JobAbortedError);
+			});
+		}, 5);
+
+		setTimeout(() => {
+			lock.abort();
+		}, 10);
+
+		setTimeout(() => {
+			expect(noCallCount).to.equal(0);
+			expect(result1).to.equal('a');
+
+			done();
+		}, 40);
+	});
+
+	it('can abort all', () => {
+		const lock = new BetterLock();
+
+		let noCallCount = 0;
+		const noCall = () => {
+			noCallCount++;
+		};
+
+		let cbCount = 0;
+		const callback = err => {
+			cbCount++;
+			expect(err).to.be.instanceOf(BetterLock.JobAbortedError);
+		};
+
+		lock.acquire(noCall, callback);
+		lock.acquire('a', noCall, callback);
+		lock.acquire('b', noCall, callback);
+
+		lock.abortAll();
+
+		expect(lock.canAcquire()).to.be.true;
+		expect(lock.canAcquire('a')).to.be.true;
+		expect(lock.canAcquire('b')).to.be.true;
+		expect(cbCount).to.equal(3);
 	});
 
 	describe('if used with promises', () => {
