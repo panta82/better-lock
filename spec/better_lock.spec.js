@@ -1,6 +1,6 @@
 const expect = require('chai').expect;
 
-const BetterLock = require('../index');
+const { BetterLock } = require('../index');
 
 describe('BetterLock', () => {
 	it('can run a simple happy path', testDone => {
@@ -387,13 +387,67 @@ describe('BetterLock', () => {
 			const lock = new BetterLock();
 			const startedAt = new Date();
 
+			const sequence = [];
 			return Promise.all([
-				lock.acquire('a', waitWorker(50, 1)),
-				waitPromise(35).then(() => lock.acquire('b', waitWorker(50, 2))),
-				waitPromise(15).then(() => lock.acquire(['a', 'b'], waitWorker(50, 3))),
-			]).then(sequence => {
+				lock.acquire('a', waitWorker(50, null, 1)).then(res => sequence.push(res)),
+				waitPromise(35).then(() =>
+					lock.acquire('b', () => {
+						sequence.push(2);
+						return waitPromise(50, 2);
+					})
+				),
+				waitPromise(15).then(() =>
+					lock.acquire(['a', 'b'], () => {
+						sequence.push(3);
+						return waitPromise(50, 3);
+					})
+				),
+			]).then(res => {
+				expect(res).to.eql([1, 2, 3]);
 				expect(sequence).to.eql([1, 3, 2]);
 				expect(new Date() - startedAt).to.be.within(145, 180);
+			});
+		});
+
+		it('can handle duplicate keys in the key list', () => {
+			const lock = new BetterLock({});
+
+			const startedAt = new Date();
+
+			return Promise.all([
+				lock.acquire(['a', undefined], waitWorker(50, null, '1')),
+				waitPromise(5).then(() =>
+					lock.acquire(['a', 'b', undefined, 'c', undefined, 'a'], waitWorker(50, null, '2'))
+				),
+				waitPromise(15).then(() => lock.acquire('c', waitWorker(50, null, '3'))),
+			]).then(res => {
+				expect(res).to.eql(['1', '2', '3']);
+				expect(new Date() - startedAt).to.be.within(145, 180);
+			});
+		});
+
+		it('can wait timeout on partially held locks', () => {
+			const lock = new BetterLock({
+				wait_timeout: 20,
+				execution_timeout: 50,
+			});
+
+			const startedAt = new Date();
+
+			return Promise.all([
+				// Hold a, time out execution after 50ms
+				lock.acquire('a', waitWorker(10000, null, 1)).catch(err => err),
+				// Wait on a, grab b, then time out on a after 20ms
+				lock
+					.acquire(['a', 'b'], waitWorker(50, new Error('Should never be seen')))
+					.catch(err => err),
+				// Wait for b, grab it when #2 times out (20ms in).
+				lock.acquire('b', waitWorker(30, null, 3), { wait_timeout: 30 }).catch(err => err),
+			]).then(([res1, res2, res3]) => {
+				expect(res1).to.be.instanceOf(BetterLock.ExecutionTimeoutError);
+				expect(res2).to.be.instanceOf(BetterLock.WaitTimeoutError);
+				expect(res3).to.equal(3);
+				expect(new Date() - startedAt).to.be.within(45, 60);
 			});
 		});
 	});

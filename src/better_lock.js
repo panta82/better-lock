@@ -95,7 +95,7 @@ function BetterLock(options) {
 	 * @param {LockJobOptions} [jobOptions] Options to be applied on this job only
 	 * @return {Promise<T>}
 	 */
-	function acquire(key, executor, callback, jobOptions = null) {
+	function acquire(key, executor, callback = undefined, jobOptions = undefined) {
 		if (tools.isFunction(key) || tools.isObject(key)) {
 			// Presume we weren't given a key
 			jobOptions = callback;
@@ -107,8 +107,14 @@ function BetterLock(options) {
 		// Repackage "key" into an array of keys
 		const keys = [];
 		if (tools.isArray(key)) {
+			// Make sure we don't add duplicates
+			const seenKeys = {};
 			for (let i = 0; i < key.length; i++) {
-				keys.push(normalizeAndValidateKey(key[i]));
+				const normalizedKey = normalizeAndValidateKey(key[i]);
+				if (!seenKeys[normalizedKey]) {
+					keys.push(normalizedKey);
+					seenKeys[normalizedKey] = true;
+				}
 			}
 		} else {
 			keys.push(normalizeAndValidateKey(key));

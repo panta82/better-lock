@@ -39,7 +39,7 @@ class InvalidArgumentError extends BetterLockError {
 
 class WaitTimeoutError extends BetterLockError {
 	constructor(name, job) {
-		const message = `Waiting ${job} has timed out after ${new Date() - job.enqueued_at}ms`;
+		const message = `${job} has timed out after ${new Date() - job.enqueued_at}ms in wait queue`;
 		super(name, message, job.incoming_stack);
 		this.job = job;
 	}
@@ -47,7 +47,7 @@ class WaitTimeoutError extends BetterLockError {
 
 class ExecutionTimeoutError extends BetterLockError {
 	constructor(name, job) {
-		const message = `Executing ${job} has timed out after ${new Date() - job.executed_at}ms`;
+		const message = `${job} has timed out after ${new Date() - job.executed_at}ms of execution`;
 		super(name, message, job.incoming_stack);
 		this.job = job;
 	}

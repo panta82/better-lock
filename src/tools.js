@@ -24,7 +24,7 @@ function isArray(val) {
 }
 
 function isObject(val) {
-	return typeof val === 'object' && val !== null;
+	return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
 
 function noop() {}
