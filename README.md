@@ -220,10 +220,6 @@ Following features are present in `async-lock`, but not here:
 
 **NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
 
-### More usage examples
-
-You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.js);
-
 ### Change log
 
 Date|Version|Change
