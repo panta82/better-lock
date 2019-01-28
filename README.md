@@ -9,8 +9,9 @@ A (better) node.js lock library.
 - Named and keyed locks
 - Queue and execution timeouts
 - Queue size limit
+- Lock on multiple keys
 - Extended stack traces
-- Optional promise interface
+- Promise and callback interface
 - JSDoc annotations
 - Good error messages
 - Unit tests, good code coverage
@@ -27,115 +28,141 @@ npm install --save better-lock
 ##### Minimal example
 
 ```javascript
+const lock = new BetterLock();
+//...
+lock
+  .acquire(() => {
+    // just make sure you return this promise chain
+    return doSomethingThatReturnsPromise()
+      .then(() => {
+         return 'result';
+      });
+  })
+  .then(
+    res => {
+      console.log(res); // result		
+    },
+    err => {
+      // Either your or BetterLock's error 
+  });
+```
+
+##### Using callback interface
+
+```javascript
 const BetterLock = require('better-lock');
 
 const lock = new BetterLock();
 //...
 lock.acquire(done => {
-    // Inside the lock
-    doMyAsyncStuffHere((err) => {
-        // Call done when done
-        done(err);
-    });
+  // Inside the lock
+  doMyAsyncStuffHere((err) => {
+    // Call done when done
+    done(err);
+  });
 }, (err) => {
-    // Outside the lock
-    if (err) {
-        // Either your od BetterLock's error
-        console.error(err); 
-    }
+  // Outside the lock
+  if (err) {
+    // Either your od BetterLock's error
+    console.error(err); 
+  }
 });
 ```
 
-##### The same thing with promises
 
-```javascript
-const lock = new BetterLock();
-//...
-lock
-    .acquire(() => {
-        // just make sure you return this promise chain
-        return doSomethingThatReturnsPromise()
-            .then(() => {
-                 return 'result';
-            });
-    })
-    .then(res => {
-        console.log(res); // result		
-    })
-    .catch(err => {
-        // Either your od BetterLock's error 
-    });
-```
-
-##### Kitchen sink example
+##### Using full options
 
 ```javascript
 const lock = new BetterLock({
-    name: 'FileLock',                  // To be used in error reporting and logging
-    log: winstonLogger.debug,          // Give it your logger with appropeiate level
-    wait_timeout: 1000 * 30,           // Max 30 sec wait in queue
-    execution_timeout: 1000 * 60 * 5,  // Time out after 5 minutes
-    queue_size: 1,                     // At most one pending job
-    overflow_strategy: BetterLock
-        .OVERFLOW_STRATEGIES.kick_last // Queue the latest call, kick out the prev one
+  name: 'FileLock',                  // To be used in error reporting and logging
+  log: winstonLogger.debug,          // Give it your logger with appropeiate level
+  wait_timeout: 1000 * 30,           // Max 30 sec wait in queue
+  execution_timeout: 1000 * 60 * 5,  // Time out after 5 minutes
+   queue_size: 1,                     // At most one pending job
 });
 
 function processFile(filename, callback) {
-    lock.acquire(filename, () => {
-        return appendToFile(filename)
-            .then(result => {
-                return updateDb(result);
-            });
-    }).then(result => {
-        callback(null, {
-            status: true,
-            result
-        });
-    }).catch(err => {
-        if (err instanceof BetterLock.QueueOverflowError) {
-            return callback(null, {
-                status: false // The job was discarded
-            });
-        }
-        if (err instanceof BetterLock.ExecutionTimeoutError) {
-            winstonLogger.warn('Potential swallowed callback! Stack trace to the entry site:', err.stack);
-        }
-        return callback(err);
+  lock.acquire(filename, () => {
+    return appendToFile(filename)
+      .then(result => {
+        return updateDb(result);
+      });
+  }).then(result => {
+    callback(null, {
+      status: true,
+      result,
     });
+  }).catch(err => {
+    if (err instanceof BetterLock.QueueOverflowError) {
+      return callback(null, {
+        status: false, // The job was discarded
+      });
+    }
+    if (err instanceof BetterLock.ExecutionTimeoutError) {
+      winstonLogger.warn('Potential swallowed callback! Stack trace to the entry site:', err.stack);
+    }
+    return callback(err);
+  });
 }
 
 ```
 
+##### Locking on multiple keys
+
+```javascript
+const userLock = new BetterLock({
+  name: 'User lock',
+  executionTimeout: 1000 * 60 * 60, // Note you can also use camelCase
+});
+
+function transferBetweenUsers(fromId, toId, amount) {
+  userLock.acquire([fromId, toId], () => {
+    return Promise.all([
+      User.get(fromId),
+      User.get(toId),
+    ]).then(([fromUser, toUser]) => {
+      fromUser.amount -= amount;
+      toUser.amount += amount;
+      return Promise.all([
+        user1.save(),
+        user2.save(),
+      ]);
+    });
+  }).then(() => {
+    console.log('Transfer completed');
+  });
+}
+```
+
+
 ### Motivation
 
-I was using [async-lock](https://github.com/rogierschouten/async-lock) in a work project. Something was swallowing a callback in production. Not only did async-lock did nothing to prevent it, it was very spartan with its error messages.
+I needed something like [async-lock](https://github.com/rogierschouten/async-lock), but a bit easier to debug.
 
-So, as a weekend project, I have decided to improve on `async-lock` it in the following ways:
+This library improves upon `async-lock` in following ways:
 
 - Good error messages and log facility
 - Execution timeout
 - Extended stack traces (so when you get an error, you have a full stack trace of the original calling code)
 - JSDoc comments (helps if you're using an IDE)
 
-I have kept the following good aspects of async-lock:
+Following features are present in both libraries:
 
-- Multiple keys per lock
+- Multiple keys per lock instance
+- Acquire multiple keys in a single call
 - Interface, with executor and the callback function
 - Promises
 - Timeout and queue limit
 
-I have decided to not implement the following features:
+Following features are present in `async-lock`, but not here:
 
 - Domain reentrancy (domains are going away)
-- Acquire multiple keys (never needed it, needs to be smarter about deadlocks anyway)
 
 **NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
 
 ### Options
 
-All available options with defaults can be seen [here](src/consts.js).
-
-Options are provided when you construct a lock instance. Some option overrides are also available when you call `lock.acquire`, as the last argument (namely, timeouts).
+All available options with defaults can be seen [here](src/options.js). `BetterLockOptions` are provided when you construct a lock instance. A subset of options given in `LockJobOptions` can be provided when you call `lock.acquire`, as the last argument.
 
 ```javascript
 lock.acquire(executor, callback, {
