@@ -1,7 +1,6 @@
-const {BetterLock} = require('./src/better_lock');
+const { BetterLock } = require('./src/better_lock');
 const errors = require('./src/errors');
-const LockJob = require('./src/lock_job');
-const consts = require('./src/consts');
+const { LockJob } = require('./src/types');
 
 BetterLock.BetterLock = BetterLock;
 
@@ -13,12 +12,5 @@ BetterLock.ExecutionTimeoutError = errors.ExecutionTimeoutError;
 BetterLock.QueueOverflowError = errors.QueueOverflowError;
 
 BetterLock.LockJob = LockJob;
-
-BetterLock.DEFAULT_OPTIONS = consts.DEFAULT_OPTIONS;
-
-/**
- * @type {OverflowStrategies}
- */
-BetterLock.OVERFLOW_STRATEGIES = consts.OVERFLOW_STRATEGIES;
 
 module.exports = BetterLock;

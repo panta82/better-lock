@@ -6,10 +6,16 @@ class BetterLockError extends Error {
 			super(message);
 		}
 		this.lock_name = name;
-		
+
 		if (incomingStack) {
-			const withoutFirstLine = incomingStack.split('\n').slice(1).join('\n');
-			this.stack = this.stack + '\n    --------------------------------------------------------------------------------\n' + withoutFirstLine;
+			const withoutFirstLine = incomingStack
+				.split('\n')
+				.slice(1)
+				.join('\n');
+			this.stack =
+				this.stack +
+				'\n    --------------------------------------------------------------------------------\n' +
+				withoutFirstLine;
 		}
 	}
 }
@@ -48,11 +54,12 @@ class ExecutionTimeoutError extends BetterLockError {
 }
 
 class QueueOverflowError extends BetterLockError {
-	constructor(name, job, strategy) {
-		const message = `Too many pending jobs. ${job} was kicked out using the "${strategy}" strategy`;
+	constructor(name, key, count, job) {
+		const message = `Too many jobs (${count}) waiting for ${key}. The most recent job (${job}) was kicked out`;
 		super(name, message, job.incoming_stack);
+		this.key = key;
+		this.count = count;
 		this.job = job;
-		this.strategy = strategy;
 	}
 }
 
@@ -62,5 +69,5 @@ module.exports = {
 	InvalidArgumentError,
 	WaitTimeoutError,
 	ExecutionTimeoutError,
-	QueueOverflowError
+	QueueOverflowError,
 };

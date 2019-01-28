@@ -1,294 +1,349 @@
 const tools = require('./tools');
 
-const {DEFAULT_OPTIONS, OVERFLOW_STRATEGIES, OPTION_ALIASES} = require('./consts');
-const LockJob = require('./lock_job');
-const {BetterLockInternalError, InvalidArgumentError, WaitTimeoutError, ExecutionTimeoutError, QueueOverflowError} = require('./errors');
+const { LockJob, KeyQueue } = require('./types');
+const {
+	BetterLockInternalError,
+	InvalidArgumentError,
+	WaitTimeoutError,
+	ExecutionTimeoutError,
+	QueueOverflowError,
+} = require('./errors');
+const { BetterLockOptions, LockJobOptions, DEFAULT_OPTIONS } = require('./options');
 
-function BetterLock(options = DEFAULT_OPTIONS) {
-	options = Object.assign({}, DEFAULT_OPTIONS, options);
-	
-	if (!(options.queue_size === null || options.queue_size >= 0)) {
-		throw new InvalidArgumentError(options.name, 'queue_size', `null, 0 or a positive number`, options.queue_size);
-	}
-	if (!OVERFLOW_STRATEGIES[options.overflow_strategy]) {
-		throw new InvalidArgumentError(options.name, 'overflow_strategy', `one of (${Object.keys(OVERFLOW_STRATEGIES).join(',')})`, options.overflow_strategy);
-	}
-	
+/**
+ * BetterLock constructor.
+ * @constructor
+ * @param {BetterLockOptions} options
+ */
+function BetterLock(options) {
+	options = new BetterLockOptions([BetterLock.DEFAULT_OPTIONS, options]);
+
 	const log = tools.makeLog(options.name, options.log);
-	
-	const _noKeyQueue = [];
-	const _keyQueues = {};
-	
-	Object.assign(this, /** @lends {BetterLock.prototype} */ {
-		canAcquire,
-		acquire
-	});
-	
+
+	/** @type {Object.<string, KeyQueue>} */
+	const _queues = {};
+
+	Object.assign(
+		this,
+		/** @lends {BetterLock.prototype} */ {
+			canAcquire,
+			acquire,
+		}
+	);
+
+	// *******************************************************************************************************************
+
 	/**
-	 * Returns true if the caller can *immediately* acquire the lock. There is nothing executing and nothing in the queue.
+	 * Return or create a key queue for given key
+	 * @return {KeyQueue}
+	 */
+	function getQueue(key) {
+		if (key === undefined || key === null) {
+			key = KeyQueue.DEFAULT_QUEUE_KEY;
+		}
+		let queue = _queues[key];
+		if (!queue) {
+			queue = _queues[key] = new KeyQueue(key);
+		}
+		return queue;
+	}
+
+	/**
+	 * Returns true if the caller can *immediately* acquire the lock. There is nothing holding the key and nothing in the queue.
 	 * @param key
 	 */
 	function canAcquire(key) {
 		const queue = getQueue(key);
-		if (!queue) {
-			return true;
-		}
-		
-		return !queue.executing && !queue.length;
+		return !queue.active && !queue.jobs.length;
 	}
-	
+
+	function normalizeAndValidateKey(key) {
+		if (key === undefined) {
+			return undefined;
+		}
+		if (key === null) {
+			return undefined;
+		}
+		if (tools.isString(key)) {
+			return key;
+		}
+		if (tools.isNumber(key)) {
+			return String(key);
+		}
+		// Invalid key value
+		throw new InvalidArgumentError(
+			options.name,
+			'key',
+			'a string, number, undefined, null, or an array of these types',
+			key
+		);
+	}
+
 	/**
-	 * Acquire lock. Once the lock is acquired, we will call the executor function, with a "done" method.
-	 * You must call "done" to release the lock. If acquire fails, callback will be called with appropriate error.
-	 * Callback will also be called with whatever exit arguments you pass to done, so you can do all your cleanup
-	 * code there.
-	 * @param {string|Number|undefined} [key] Named key for this particular call. Calls with different keys will be run in parallel. Not mandatory.
-	 * @param {function} executor Function that will run inside the lock
-	 * @param {function} [callback] Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion).
-	 * @param {object} [jobOptions] job options (mostly timeouts), to be applied on this job only
+	 * Acquire the lock for given key or list of keys. If waiting on a list, keys will be acquired in order,
+	 * as they become free. Any deadlock prevention must be handled by the caller.
+	 *
+	 * Once the lock is acquired, we will call the executor function, with a "done" method.
+	 * You must call "done" to release the lock. Alternatively, return a Promise; lock will be released
+	 * once promise resolves or rejects.
+	 *
+	 * Return values from your executor will be passed to callback (or the resulting promise).
+	 * @template T
+	 * @param {string|Number|Array|undefined} [key] Named key or array of keys for this particular call. Calls with different keys will be run in parallel. Not required.
+	 * @param {function(done):Promise<T>} executor Function that will run inside the lock. Required.
+	 * @param {function} [callback] Function to be called after the executor finishes or if we never enter the lock (timeout, queue depletion). Leave out to use promises.
+	 * @param {LockJobOptions} [jobOptions] Options to be applied on this job only
+	 * @return {Promise<T>}
 	 */
 	function acquire(key, executor, callback, jobOptions = null) {
-		// Repackage "key". Must be string or number or undefined
-		if (key === null) {
+		if (tools.isFunction(key) || tools.isObject(key)) {
+			// Presume we weren't given a key
+			jobOptions = callback;
+			callback = executor;
+			executor = key;
 			key = undefined;
+		}
+
+		// Repackage "key" into an array of keys
+		const keys = [];
+		if (tools.isArray(key)) {
+			for (let i = 0; i < key.length; i++) {
+				keys.push(normalizeAndValidateKey(key[i]));
+			}
 		} else {
-      if (tools.isNumber(key)) {
-        key = String(key);
-      }
-      if (!tools.isString(key) && key !== undefined) {
-        jobOptions = callback;
-        callback = executor;
-        executor = key;
-        key = undefined;
-      }
-    }
-		
+			keys.push(normalizeAndValidateKey(key));
+		}
+
 		// Create callback wrapper for promise interface
 		if (!tools.isFunction(callback)) {
 			if (jobOptions === undefined) {
 				jobOptions = callback;
 			}
-			
+
 			callback = tools.callbackWithPromise();
 		}
-		
-		// Validate the most important parts
-		if (!tools.isString(key) && key !== undefined) {
-			throw new InvalidArgumentError(options.name, 'key', 'a string or undefined', key);
-		}
+
+		// Validate other options
 		if (!tools.isFunction(executor)) {
 			throw new InvalidArgumentError(options.name, 'executor', 'a function', executor);
 		}
 		if (!tools.isFunction(callback)) {
 			throw new InvalidArgumentError(options.name, 'callback', 'a function', callback);
 		}
-		
-		const queue = key !== undefined
-			? _keyQueues[key] || (_keyQueues[key] = [])
-			: _noKeyQueue;
-		
-		const job =  new LockJob(key, executor, callback);
-		job.wait_timeout = getOption('wait_timeout', jobOptions);
-		job.execution_timeout = getOption('execution_timeout', jobOptions);
-		
-		if (getOption('extend_stack_traces', jobOptions)) {
+
+		// Prepare job options
+		const effectiveJobOptions = jobOptions
+			? new LockJobOptions([options, jobOptions])
+			: // No need to create new object since these will be read-only and are subset of global options
+			  options;
+
+		const job = new LockJob(keys, executor, callback, effectiveJobOptions);
+
+		// Set incoming stack
+		if (effectiveJobOptions.extend_stack_traces) {
 			const tempErr = new Error();
 			Error.captureStackTrace(tempErr, acquire);
 			job.incoming_stack = tempErr.stack;
 		}
-		
-		queue.push(job);
-		
+
+		// Add job to its key queues
+		const queuesToUpdate = [];
+		for (let i = 0; i < keys.length; i++) {
+			const queue = getQueue(keys[i]);
+			queue.jobs.push(job);
+			queuesToUpdate.push(queue);
+		}
+
+		// Start wait timer, if enabled
+		if (tools.isNumber(job.options.wait_timeout)) {
+			job.wait_timeout_id = setTimeout(onWaitTimeout.bind(null, job), job.options.wait_timeout);
+
+			// NOTE: timeout of 0 will NOT trigger error if lock can be acquired immediately.
+		}
+
 		log(`Enqueued ${job}`);
-		
-		setImmediate(update, queue);
-		
+
+		// Perform update of queues this job has modified. We don't do this in next tick or something,
+		// because we want canAcquire to immediately return false
+		update(queuesToUpdate);
+
 		return callback.promise;
 	}
-	
-	function getOption(key, customOptions) {
-		const alias = OPTION_ALIASES[key];
-		if (customOptions) {
-			if (customOptions[key] !== undefined) {
-				return customOptions[key];
-			}
-			if (alias && customOptions[alias] !== undefined) {
-				return customOptions[alias];
-			}
-		}
-		if (options[key] !== undefined) {
-			return options[key];
-		}
-		if (alias && options[alias] !== undefined) {
-			return options[alias];
-		}
-		return undefined;
-	}
-	
-	function getQueue(key) {
-		if (key === undefined) {
-			return _noKeyQueue;
-		}
-		return _keyQueues[key];
-	}
-	
+
 	/**
-	 * @param {LockJob[]} queue
+	 * Update state of given list of queues.
+	 * @param {KeyQueue[]} queues
 	 */
-	function update(queue) {
-		if (!queue) {
-			throw new BetterLockInternalError(options.name, `update is called without a queue`);
-		}
-		
-		if (!queue.executing && queue.length > 0) {
-			// Execute next job
-			queue.executing = queue.splice(0, 1)[0];
-			executeJob(queue.executing);
-		}
-		
-		if (options.queue_size !== null) {
-			while (options.queue_size < queue.length) {
-				// Overflow. Need to kick someone out
-				let jobToKick;
-				switch (options.overflow_strategy) {
-					case OVERFLOW_STRATEGIES.kick_first:
-						jobToKick = queue[0];
-						break;
-					
-					case OVERFLOW_STRATEGIES.kick_last:
-						jobToKick = queue[queue.length - 2];
-						break;
-					
-					case OVERFLOW_STRATEGIES.reject:
-						jobToKick = queue[queue.length - 1];
-						break;
-					
-					default:
-						throw new BetterLockInternalError(options.name, `Unexpected overflow strategy: ${options.overflow_strategy}`);
+	function update(queues) {
+		for (let i = 0; i < queues.length; i++) {
+			const queue = queues[i];
+
+			// If key is available, have next job grab it
+			if (!queue.active && queue.jobs.length) {
+				/** @type {LockJob} */
+				const job = queue.jobs.splice(0, 1)[0];
+				queue.active = job;
+				job.waiting_count--;
+
+				if (job.waiting_count <= 0) {
+					// This job can be executed now.
+					executeJob(job);
 				}
-				
-				log(`Queue "${jobToKick.key}" has overflown, so ${jobToKick} was kicked out using the "${options.overflow_strategy}" strategy`);
-				endJob(jobToKick, [new QueueOverflowError(options.name, jobToKick, options.overflow_strategy)]);
 			}
-		}
-		
-		for (let i = 0; i < queue.length; i++) {
-			const job = queue[i];
-			
-			if (tools.isNumber(job.wait_timeout) && !job.wait_timeout_ptr) {
-				// Job has been added, it's waiting, but no wait timeout was set. Set the timeout now.
-				job.wait_timeout_ptr = setTimeout(onWaitTimeout.bind(null, job), job.wait_timeout);
+
+			// Handle wait queue overflow
+			if (tools.isNumber(options.queue_size) && options.queue_size < queue.jobs.length) {
+				// Overflow. Reject the most recent job
+				const mostRecentJob = queue.jobs[queue.jobs.length - 1];
+				log(
+					`${queue.toString()} has overflown, so most recent job (${mostRecentJob}) was kicked out`
+				);
+
+				endJob(mostRecentJob, [
+					new QueueOverflowError(options.name, queue.key, queue.jobs.length, mostRecentJob),
+				]);
 			}
 		}
 	}
-	
+
 	/**
 	 * @param {LockJob} job
 	 */
 	function executeJob(job) {
 		log(`Executing ${job}`);
 		job.executed_at = new Date();
-		
-		clearTimeout(job.wait_timeout_ptr);
-		job.wait_timeout_ptr = null;
-		
-		if (tools.isNumber(job.execution_timeout)) {
-			job.execution_timeout_ptr = setTimeout(onExecutionTimeout.bind(null, job), job.execution_timeout);
+
+		for (let i = 0; i < job.keys.length; i++) {
+			const queue = getQueue(job.keys[i]);
+			if (queue.active !== job) {
+				// This should never happen
+				return endJob(job, [
+					new BetterLockInternalError(options.name, `Corrupted wait queue state for ${queue.key}`),
+				]);
+			}
 		}
-		
-		if (job.executor.length > 0) {
-			// Callback interface
-			job.executor(lockDone);
-			return;
-		}
-		
-		// Promise interface
-		let promise;
-		try {
-			promise = job.executor();
-		}
-		catch (err) {
-			// Error thrown directly from executor
-			lockDone(err);
-		}
-		
-		if (promise instanceof Promise) {
-			promise
-				.then(res => lockDone(null, res))
-				.catch(err => lockDone(err));
-		} else {
-			// Promise is just the result value we don't have to wait
-			lockDone(null, promise);
-		}
-		
-		function lockDone() {
-			log(`Done called for ${job}`);
-			
-			endJob(job, arguments);
-		}
+
+		clearTimeout(job.wait_timeout_id);
+		job.wait_timeout_id = null;
+
+		// We want to do the rest of this in a separate context, because we don't want user executor code
+		// to ever interfere with the code calling acquire().
+
+		setImmediate(() => {
+			if (tools.isNumber(job.options.execution_timeout)) {
+				job.execution_timeout_id = setTimeout(
+					onExecutionTimeout.bind(null, job),
+					job.options.execution_timeout
+				);
+			}
+
+			if (job.executor.length > 0) {
+				// Callback interface
+				job.executor(lockDone);
+				return;
+			}
+
+			// Promise interface
+			let executorResult;
+			try {
+				executorResult = job.executor();
+			} catch (err) {
+				// Error thrown directly from executor
+				lockDone(err);
+			}
+
+			// Promise sniffing
+			if (executorResult && executorResult.then && executorResult.catch) {
+				executorResult.then(res => lockDone(null, res), err => lockDone(err));
+			} else {
+				// Promise is just the result value we don't have to wait
+				lockDone(null, executorResult);
+			}
+
+			function lockDone() {
+				log(`Done called for ${job}`);
+
+				endJob(job, arguments);
+			}
+		});
 	}
-	
+
 	/**
 	 * @param {LockJob} job
 	 */
 	function onWaitTimeout(job) {
 		log(`${job} has timed out after waiting in queue for ${new Date() - job.enqueued_at}ms`);
-		
+
 		endJob(job, [new WaitTimeoutError(options.name, job)]);
 	}
-	
+
 	/**
 	 * @param {LockJob} job
 	 */
 	function onExecutionTimeout(job) {
 		log(`${job} has timed out after executing for ${new Date() - job.executed_at}ms`);
-		
+
 		endJob(job, [new ExecutionTimeoutError(options.name, job)]);
 	}
-	
+
 	/**
 	 * @param {LockJob} job
-	 * @param {*[]|Array|Arguments} callbackArgs
+	 * @param {*[]|Array|IArguments} callbackArgs
 	 */
 	function endJob(job, callbackArgs) {
 		if (job.ended_at) {
-			log(`${job} is trying to end, but it has already ended at ${job.ended_at.toISOString()}. Called with arguments: ${callbackArgs}`);
+			log(
+				`WARNING: ${job} is trying to end, but it has already ended at ${job.ended_at.toISOString()}. Called with arguments: ${callbackArgs}`
+			);
 			return;
 		}
-		
-		clearTimeout(job.wait_timeout_ptr);
-		job.wait_timeout_ptr = null;
-		
-		clearTimeout(job.execution_timeout_ptr);
-		job.execution_timeout_ptr = null;
-		
+
+		clearTimeout(job.wait_timeout_id);
+		job.wait_timeout_id = null;
+
+		clearTimeout(job.execution_timeout_id);
+		job.execution_timeout_id = null;
+
 		job.ended_at = new Date();
-		
-		const queue = getQueue(job.key);
-		if (!queue) {
-			throw new BetterLockInternalError(options.name, `Couldn't find queue for key "${job.key}"`);
-		}
-		
-		if (queue.executing === job) {
-			// If this was currently executing job, clear that spot
-			queue.executing = null;
-		} else {
-			// If this was an enqueued job, dequeue it
-			const index = queue.indexOf(job);
-			if (index >= 0) {
-				queue.splice(index, 1);
+
+		const queuesToUpdate = [];
+		for (let i = 0; i < job.keys.length; i++) {
+			const queue = getQueue(job.keys[i]);
+			queuesToUpdate.push(queue);
+
+			if (queue.active === job) {
+				// This job was holding on the queue's key
+				queue.active = null;
 			} else {
-				// Something is wrong. Where did this job come from?
-				throw new BetterLockInternalError(options.name, `${job} is neither currently executing, nor enqueued.`);
+				// This job was still in wait list for this queue
+				const index = queue.jobs.indexOf(job);
+				if (index >= 0) {
+					// Remove from queue
+					queue.jobs.splice(index, 1);
+				} else {
+					// Something is wrong. Where did this job come from?
+					log(
+						`WARNING: ${job} is ending, but it is not found anywhere in the queue for ${queue.key}`
+					);
+				}
 			}
 		}
-		
-		job.callback.apply(null, callbackArgs);
-		
-		setImmediate(update, queue);
+
+		// Call the callback
+		try {
+			job.callback.apply(null, callbackArgs);
+		} finally {
+			// Whatever happens, schedule a queue update
+			setImmediate(update, queuesToUpdate);
+		}
 	}
 }
 
+/**
+ * Default options to be used when creating BetterLock instances.
+ */
+BetterLock.DEFAULT_OPTIONS = DEFAULT_OPTIONS;
+
 module.exports = {
-	BetterLock
+	BetterLock,
 };
