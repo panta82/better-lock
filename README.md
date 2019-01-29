@@ -231,6 +231,7 @@ Date|Version|Change
 2018/10/01|0.3.0|Can abort jobs waiting in queue.
 2018/10/01|0.3.1|Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
 2019/01/28|1.0.0|Major update. Added multi-key locks and refactored a bunch of internals. Removed `OVERFLOW_STRATEGIES` and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.
+2019/01/28|1.0.1|Handle empty key list
 
 ### Development
 

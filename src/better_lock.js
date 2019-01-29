@@ -174,7 +174,12 @@ function BetterLock(options) {
 
 		// Perform update of queues this job has modified. We don't do this in next tick or something,
 		// because we want canAcquire to immediately return false
-		update(queuesToUpdate);
+		if (queuesToUpdate.length) {
+			update(queuesToUpdate);
+		} else {
+			// Special case. We are given empty list of keys. We will immediately execute jobs like this.
+			executeJob(job);
+		}
 
 		return callback.promise;
 	}

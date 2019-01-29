@@ -563,6 +563,25 @@ describe('BetterLock', () => {
 				expect(new Date() - startedAt).to.be.within(45, 60);
 			});
 		});
+
+		it('will gracefully handle empty key lists', () => {
+			const lock = new BetterLock({
+				wait_timeout: 1000,
+				execution_timeout: 1000,
+			});
+
+			const startedAt = new Date();
+			let executed = false;
+			return lock
+				.acquire([], () => {
+					// Should have been executed immediately
+					expect(new Date() - startedAt).to.be.within(0, 10);
+					executed = true;
+				})
+				.finally(() => {
+					expect(executed).to.be.true;
+				});
+		});
 	});
 });
 
