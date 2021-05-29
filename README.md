@@ -162,7 +162,7 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 ### Options
 
-All available options with defaults can be seen [here](src/options.js).
+All available options with defaults can be seen [here](src/options.ts).
 
 `BetterLockOptions` are provided when you construct a lock instance. A subset of options given in `LockJobOptions` can be provided when you call `lock.acquire`, as the last argument.
 
@@ -258,7 +258,14 @@ Handle empty key list
 #### **2.0.0** (_2021/05/28_)
 
 Major update. The entire library was rewritten in typescript, so you should now get typings in most editors.
-The API has remained the same.
+
+The API has remained largely the same. But there are a few minor breaking changes:
+
+- You can no longer use camel case versions of external-facing objects. Eg. you can no longer pass `waitTimeout` instead of `wait_timeout`. In retrospect, this was a pretty flaky API to maintain.
+
+- Internal `LockJob` class is no longer exported.
+
+- Also, errors no longer expose internal `LockJob` instances (`err.job`). We now instead provide the most important fields from the job (`id` and `keys`).
 
 ### Development
 

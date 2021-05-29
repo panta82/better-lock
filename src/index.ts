@@ -1,19 +1,38 @@
-const { BetterLock } = require('./src/better_lock');
-const errors = require('./src/errors');
-const { LockJob } = require('./src/types');
-const { BetterLockOptions } = require('./src/options');
+import { BetterLock as BetterLockUnadorned } from './better_lock';
+import {
+  BetterLockError,
+  BetterLockInternalError,
+  ExecutionTimeoutError,
+  InvalidArgumentError,
+  JobAbortedError,
+  QueueOverflowError,
+  WaitTimeoutError,
+} from './errors';
+import { BetterLockOptions } from './options';
+import { IExecutor as BetterLockExecutor, ILockKey as BetterLockKey } from './types';
 
-BetterLock.BetterLock = BetterLock;
+export { BetterLockOptions, BetterLockExecutor, BetterLockKey };
 
-BetterLock.BetterLockError = errors.BetterLockError;
-BetterLock.BetterLockInternalError = errors.BetterLockInternalError;
-BetterLock.InvalidArgumentError = errors.InvalidArgumentError;
-BetterLock.WaitTimeoutError = errors.WaitTimeoutError;
-BetterLock.ExecutionTimeoutError = errors.ExecutionTimeoutError;
-BetterLock.QueueOverflowError = errors.QueueOverflowError;
-BetterLock.JobAbortedError = errors.JobAbortedError;
+function attachExports<TTarget, TExports extends { [key: string]: any }>(
+  target: TTarget,
+  exports: TExports
+): TTarget & TExports {
+  Object.assign(target, exports);
+  return target as any;
+}
 
-BetterLock.LockJob = LockJob;
-BetterLock.Options = BetterLockOptions;
+export const BetterLock = attachExports(BetterLockUnadorned, {
+  BetterLock: BetterLockUnadorned,
 
-module.exports = BetterLock;
+  BetterLockError: BetterLockError,
+  BetterLockInternalError: BetterLockInternalError,
+  InvalidArgumentError: InvalidArgumentError,
+  WaitTimeoutError: WaitTimeoutError,
+  ExecutionTimeoutError: ExecutionTimeoutError,
+  QueueOverflowError: QueueOverflowError,
+  JobAbortedError: JobAbortedError,
+
+  Options: BetterLockOptions,
+});
+
+export default BetterLock;
