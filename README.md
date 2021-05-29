@@ -6,6 +6,7 @@ A (better) node.js lock library.
 
 ### Features
 
+- Typescript-ready
 - Named and keyed locks
 - Queue and execution timeouts
 - Queue size limit
@@ -29,28 +30,25 @@ npm install --save better-lock
 
 ```javascript
 const lock = new BetterLock();
-//...
-lock
-  .acquire(() => {
-    // Inside the lock. Just make sure you return a promise
-    return doSomethingThatReturnsPromise()
-      .then(() => {
-         return 'my result';
-      });
-  })
-  .then(
-    res => {
-      // Outside the lock. You will get whatever the promise chain has returned.
-      console.log(res); // my result		
-    },
-    err => {
-      // Either your or BetterLock's error 
+
+try {
+  const res = await lock.acquire(async () => {
+    // Inside the lock. It will stay closed until the promise you return resolves or rejects.
+    await doSomeAsyncTask();
+    return 'my result';
   });
+
+  // Outside the lock. You will get whatever the promise chain has returned.
+  console.log(res); // "my result"
+}
+catch (err) {
+  // Either your or BetterLock's error
+}
 ```
 
 ##### Advanced example
 
-```javascript
+```typescript
 const lock = new BetterLock({
   name: 'FileLock',                  // To be used in error reporting and logging
   log: winstonLogger.debug,          // Give it your logger with appropeiate level
@@ -59,28 +57,30 @@ const lock = new BetterLock({
   queue_size: 1,                     // At most one pending job
 });
 
-function processFile(filename, callback) {
-  lock.acquire(filename, () => {
-    return appendToFile(filename)
-      .then(result => {
-        return updateDb(result);
-      });
-  }).then(result => {
-    callback(null, {
-      status: true,
-      result,
+async function processFile(filename) {
+  try {
+    const result = await lock.acquire(filename, async () => {
+      const appended = await appendToFile(filename);
+      return updateDb(appended);
     });
-  }).catch(err => {
+    return {
+      status: true,
+      result
+    };
+  }
+  catch (err) {
     if (err instanceof BetterLock.QueueOverflowError) {
-      return callback(null, {
-        status: false, // The job was discarded
-      });
+      // The job was discarded
+      return {
+        status: false
+      };
     }
+
     if (err instanceof BetterLock.ExecutionTimeoutError) {
       winstonLogger.warn('Potential swallowed callback! Stack trace to the entry site:', err.stack);
     }
-    return callback(err);
-  });
+    throw err;
+  }
 }
 
 ```
@@ -129,7 +129,7 @@ lock.acquire(done => {
   // Outside the lock
   if (err) {
     // Either your or BetterLock's error
-    console.error(err); 
+    console.error(err);
   }
 });
 ```
@@ -143,10 +143,11 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 - `BetterLock.acquire([key], executor, [callback], [jobOptions])`  
   The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. Returns a promise that will be resolved with whatever `executor` returns.
+
   - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns. Eg. this might be a database record id or filename.
   - `executor`: Function that will be called within the lock. This function should have one of two forms.
-    1. *Without arguments*, in which case it should return a promise. Lock will remain locked until the promise resolves.
-    2. *With single `done`* argument. In this case, the executor should call `done(err, res)` once it is done. Arguments passed to done will be passed to the callback of the lock.
+    1. _Without arguments_, in which case it should return a promise. Lock will remain locked until the promise resolves.
+    2. _With single `done`_ argument. In this case, the executor should call `done(err, res)` once it is done. Arguments passed to done will be passed to the callback of the lock.
   - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along. This can be used in addition to the returned promise.
   - `jobOptions`: An object that should match interface of `LockJobOptions`. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).
 
@@ -158,7 +159,6 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 - `BetterLock.abortAll()`  
   Abort all jobs for all keys. This is suitable to be called during shutdown of your app.
-
 
 ### Options
 
@@ -194,7 +194,7 @@ During runtime, you can change the defaults like this:
 const BetterLock = require('better-lock');
 
 BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
-``` 
+```
 
 ### Motivation
 
@@ -223,21 +223,49 @@ Following features are present in `async-lock`, but not here:
 
 ### Change log
 
-Date|Version|Change
-----|-------|------
-2018/06/04|0.1.1|You can now use a Number as job name
-2018/09/27|0.2.0|Code reformat, better pattern for loading options. No feature upgrades.
-2018/09/27|0.2.1|Better and customizable Promise detection. Restored DEFAULT_OPTIONS.
-2018/10/01|0.3.0|Can abort jobs waiting in queue.
-2018/10/01|0.3.1|Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
-2019/01/28|1.0.0|Major update. Added multi-key locks and refactored a bunch of internals. Removed `OVERFLOW_STRATEGIES` and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.
-2019/01/28|1.0.1|Handle empty key list
+#### **0.1.1** (_2018/06/04_)
+
+You can now use a Number as job name
+
+#### **0.2.0** (_2018/09/27_)
+
+Code reformat, better pattern for loading options. No feature upgrades.
+
+#### **0.2.1** (_2018/09/27_)
+
+- Better and customizable Promise detection.
+- Restored DEFAULT_OPTIONS.
+
+#### **0.3.0** (_2018/10/01_)
+
+Can abort jobs waiting in queue.
+
+#### **0.3.1** (_2018/10/01_)
+
+Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
+
+#### **1.0.0** (_2019/01/28_)
+
+Major version bump.
+
+- Added multi-key locks and refactored a bunch of internals.
+- Removed `OVERFLOW_STRATEGIES` and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.
+
+#### **1.0.1** (_2019/01/28_)
+
+Handle empty key list
+
+#### **2.0.0** (_2021/05/28_)
+
+Major update. The entire library was rewritten in typescript, so you should now get typings in most editors.
+The API has remained the same.
 
 ### Development
 
 Fork, then git clone. The project is already set up with a WebStorm project, if that's your cup of tee.
 
 To run tests, with coverage:
+
 ```
 npm run test
 ```

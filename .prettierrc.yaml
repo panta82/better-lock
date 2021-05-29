@@ -1,6 +1,4 @@
 printWidth: 100
-parser: babylon
 singleQuote: true
-useTabs: true
 trailingComma: es5
-tabWidth: 2
+arrowParens: avoid
