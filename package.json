@@ -10,7 +10,7 @@
     "test": "jest",
     "watch": "jest --watchAll",
     "lint": "eslint ./src",
-    "test-legacy": "nyc mocha --recursive spec"
+    "coverage": "jest --coverage"
   },
   "repository": {
     "type": "git",

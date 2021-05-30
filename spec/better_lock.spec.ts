@@ -17,11 +17,15 @@ describe('BetterLock', () => {
     const startedAt = new Date();
 
     lock.acquire(waitCallback(250, 'a', 1, [new Error()]), (a1, a2, a3) => {
-      expectMs(new Date().valueOf() - startedAt.valueOf(), 250);
-      expect(a1).toEqual('a');
-      expect(a2).toEqual(1);
-      expect(a3[0]).toBeInstanceOf(Error);
-      testDone();
+      try {
+        expectMs(new Date().valueOf() - startedAt.valueOf(), 250);
+        expect(a1).toEqual('a');
+        expect(a2).toEqual(1);
+        expect(a3[0]).toBeInstanceOf(Error);
+        testDone();
+      } catch (err) {
+        testDone(err);
+      }
     });
   });
 
@@ -552,7 +556,7 @@ describe('BetterLock', () => {
 
       return Promise.all([
         // Hold a, time out execution after 50ms
-        lock.acquire('a', waitCallback(10000, null, 1)).catch(err => err),
+        lock.acquire('a', waitCallback(100, null, 1)).catch(err => err),
         // Wait on a, grab b, then time out on a after 20ms
         lock
           .acquire(['a', 'b'], waitCallback(50, new Error('Should never be seen')))
@@ -604,7 +608,7 @@ function waitPromise(ms, result?) {
   });
 }
 
-function expectMs(actual, expected, lowerBound = 5, upperBound = 50) {
+function expectMs(actual, expected, lowerBound = 5, upperBound = 80) {
   expect(actual).toBeGreaterThanOrEqual(expected - lowerBound);
   expect(actual).toBeLessThan(expected + upperBound);
 }

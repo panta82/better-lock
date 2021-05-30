@@ -139,17 +139,17 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 ### API
 
 - `new BetterLock(options)`  
-  Create a new instance of `BetterLock`. Options should match interface of `BetterLockOptions`. See below for details.
+  Create a new instance of `BetterLock`. Options should match interface `BetterLockOptions`. See below for details.
 
 - `BetterLock.acquire([key], executor, [callback], [jobOptions])`  
-  The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. Returns a promise that will be resolved with whatever `executor` returns.
+  The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. If you don't provide `callback`, it will return a promise that will be resolved with whatever `executor` returns.
 
   - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns. Eg. this might be a database record id or filename.
   - `executor`: Function that will be called within the lock. This function should have one of two forms.
     1. _Without arguments_, in which case it should return a promise. Lock will remain locked until the promise resolves.
     2. _With single `done`_ argument. In this case, the executor should call `done(err, res)` once it is done. Arguments passed to done will be passed to the callback of the lock.
   - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along. This can be used in addition to the returned promise.
-  - `jobOptions`: An object that should match interface of `LockJobOptions`. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).
+  - `jobOptions`: An object that should match interface `BetterLockJobOptions`. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).
 
 - `BetterLock.canAcquire([key])`  
   Returns true if given key can be acquired.
@@ -162,7 +162,7 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 ### Options
 
-All available options with defaults can be seen [here](src/options.ts).
+All available options can be seen [here](src/options.ts).
 
 `BetterLockOptions` are provided when you construct a lock instance. A subset of options given in `LockJobOptions` can be provided when you call `lock.acquire`, as the last argument.
 
@@ -188,10 +188,10 @@ Most commonly used options are:
 
 Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`).
 
-During runtime, you can change the defaults like this:
+Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. That can be seen [here](src/better_lock.ts). During runtime, you can change the defaults like this:
 
 ```javascript
-const BetterLock = require('better-lock');
+import BetterLock from 'better-lock';
 
 BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
 ```
@@ -255,7 +255,7 @@ Major version bump.
 
 Handle empty key list
 
-#### **2.0.0** (_2021/05/28_)
+#### **2.0.0** (_2021/05/30_)
 
 Major update. The entire library was rewritten in typescript, so you should now get typings in most editors. We also had to switch tests from mocha + chai to jest (easier ts integration).
 
