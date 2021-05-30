@@ -1,17 +1,35 @@
 import { BetterLock as BetterLockUnadorned } from './better_lock';
 import {
   BetterLockError,
+  BetterLockExecutionTimeoutError,
   BetterLockInternalError,
-  ExecutionTimeoutError,
-  InvalidArgumentError,
-  JobAbortedError,
-  QueueOverflowError,
-  WaitTimeoutError,
+  BetterLockInvalidArgumentError,
+  BetterLockJobAbortedError,
+  BetterLockQueueOverflowError,
+  BetterLockWaitTimeoutError,
 } from './errors';
-import { BetterLockOptions } from './options';
-import { IExecutor as BetterLockExecutor, ILockKey as BetterLockKey } from './types';
+import { ILockJobOptions as BetterLockJobOptions, IOptions as BetterLockOptions } from './options';
+import {
+  IErrorName as BetterLockErrorName,
+  IExecutor as BetterLockExecutor,
+  ILockKey as BetterLockKey,
+} from './types';
 
-export { BetterLockOptions, BetterLockExecutor, BetterLockKey };
+export {
+  BetterLockOptions,
+  BetterLockJobOptions,
+  BetterLockExecutor,
+  BetterLockKey,
+  BetterLockErrorName,
+  // Errors
+  BetterLockError,
+  BetterLockExecutionTimeoutError,
+  BetterLockInternalError,
+  BetterLockInvalidArgumentError,
+  BetterLockJobAbortedError,
+  BetterLockQueueOverflowError,
+  BetterLockWaitTimeoutError,
+};
 
 function attachExports<TTarget, TExports extends { [key: string]: any }>(
   target: TTarget,
@@ -24,15 +42,13 @@ function attachExports<TTarget, TExports extends { [key: string]: any }>(
 export const BetterLock = attachExports(BetterLockUnadorned, {
   BetterLock: BetterLockUnadorned,
 
-  BetterLockError: BetterLockError,
-  BetterLockInternalError: BetterLockInternalError,
-  InvalidArgumentError: InvalidArgumentError,
-  WaitTimeoutError: WaitTimeoutError,
-  ExecutionTimeoutError: ExecutionTimeoutError,
-  QueueOverflowError: QueueOverflowError,
-  JobAbortedError: JobAbortedError,
-
-  Options: BetterLockOptions,
+  Error: BetterLockError,
+  InternalError: BetterLockInternalError,
+  InvalidArgumentError: BetterLockInvalidArgumentError,
+  WaitTimeoutError: BetterLockWaitTimeoutError,
+  ExecutionTimeoutError: BetterLockExecutionTimeoutError,
+  QueueOverflowError: BetterLockQueueOverflowError,
+  JobAbortedError: BetterLockJobAbortedError,
 });
 
 export default BetterLock;

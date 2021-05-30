@@ -1,21 +1,15 @@
 import {
+  BetterLockExecutionTimeoutError,
   BetterLockInternalError,
-  ExecutionTimeoutError,
-  InvalidArgumentError,
-  JobAbortedError,
-  QueueOverflowError,
-  WaitTimeoutError,
+  BetterLockInvalidArgumentError,
+  BetterLockJobAbortedError,
+  BetterLockQueueOverflowError,
+  BetterLockWaitTimeoutError,
 } from './errors';
-import { BetterLockOptions, LockJobOptions } from './options';
+import { KeyQueue, LockJob } from './internals';
+import { ILockJobOptions, IOptions } from './options';
 import * as tools from './tools';
-import {
-  ICallback,
-  ICallbackExecutor,
-  ILockKey,
-  IPromiseExecutor,
-  KeyQueue,
-  LockJob,
-} from './types';
+import { ICallback, ICallbackExecutor, ILockKey, IPromiseExecutor } from './types';
 
 /**
  * Create a better lock object.
@@ -24,17 +18,17 @@ export class BetterLock {
   /**
    * Default options to be used when creating BetterLock instances.
    */
-  static DEFAULT_OPTIONS = new BetterLockOptions({
+  static DEFAULT_OPTIONS: IOptions = {
     extend_stack_traces: true,
     promise_tester: p => p && typeof p.then === 'function',
-  });
+  };
 
-  private options: BetterLockOptions;
+  private options: IOptions;
   private log: (msg: string) => void;
   private queues: { [key: string]: KeyQueue };
 
-  constructor(options?: Partial<BetterLockOptions>) {
-    this.options = new BetterLockOptions([BetterLock.DEFAULT_OPTIONS, options]);
+  constructor(options?: IOptions) {
+    this.options = tools.assign({}, [BetterLock.DEFAULT_OPTIONS, options]);
     this.log = tools.makeLog(this.options.name, this.options.log);
     this.queues = {};
   }
@@ -44,7 +38,7 @@ export class BetterLock {
    */
   private getQueue(key: ILockKey): KeyQueue {
     if (key === undefined || key === null) {
-      key = KeyQueue._defaultQueueKey;
+      key = KeyQueue.DEFAULT_QUEUE_KEY;
     }
     let queue = this.queues[key];
     if (!queue) {
@@ -75,7 +69,7 @@ export class BetterLock {
       return String(key);
     }
     // Invalid key value
-    throw new InvalidArgumentError(
+    throw new BetterLockInvalidArgumentError(
       this.options.name,
       'key',
       'an instance of ILockKey: string, number, undefined or null',
@@ -85,24 +79,33 @@ export class BetterLock {
 
   public acquire<TResult>(
     executor: IPromiseExecutor<TResult>,
-    jobOptions?: LockJobOptions
+    jobOptions?: ILockJobOptions
   ): Promise<TResult>;
   public acquire<TResult>(
     executor: ICallbackExecutor<TResult>,
-    callback?: ICallback<TResult>,
-    jobOptions?: LockJobOptions
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquire<TResult>(
+    executor: ICallbackExecutor<TResult>,
+    callback: ICallback<TResult>,
+    jobOptions?: ILockJobOptions
   ): void;
   public acquire<TResult>(
     key: ILockKey | Array<ILockKey>,
     executor: IPromiseExecutor<TResult>,
-    jobOptions?: LockJobOptions
+    jobOptions?: ILockJobOptions
   ): Promise<TResult>;
   public acquire<TResult>(
     key: ILockKey | Array<ILockKey>,
     executor: ICallbackExecutor<TResult>,
-    callback?: ICallback<TResult>,
-    jobOptions?: LockJobOptions
-  ): undefined;
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquire<TResult>(
+    key: ILockKey | Array<ILockKey>,
+    executor: ICallbackExecutor<TResult>,
+    callback: ICallback<TResult>,
+    jobOptions?: ILockJobOptions
+  ): void;
   /**
    * Acquire the lock for given key or list of keys. If waiting on a list, keys will be acquired in order,
    * as they become free. Any deadlock prevention must be handled by the caller.
@@ -155,15 +158,25 @@ export class BetterLock {
 
     // Validate other options
     if (!tools.isFunction(executor)) {
-      throw new InvalidArgumentError(this.options.name, 'executor', 'a function', executor);
+      throw new BetterLockInvalidArgumentError(
+        this.options.name,
+        'executor',
+        'a function',
+        executor
+      );
     }
     if (!tools.isFunction(callback)) {
-      throw new InvalidArgumentError(this.options.name, 'callback', 'a function', callback);
+      throw new BetterLockInvalidArgumentError(
+        this.options.name,
+        'callback',
+        'a function',
+        callback
+      );
     }
 
     // Prepare job options
     const effectiveJobOptions = jobOptions
-      ? new LockJobOptions([this.options, jobOptions])
+      ? tools.assign({}, [this.options, jobOptions])
       : // No need to create new object since these will be read-only and are subset of global options
         this.options;
 
@@ -233,7 +246,12 @@ export class BetterLock {
         );
 
         this.endJob(mostRecentJob, [
-          new QueueOverflowError(this.options.name, queue.key, queue.jobs.length, mostRecentJob),
+          new BetterLockQueueOverflowError(
+            this.options.name,
+            queue.key,
+            queue.jobs.length,
+            mostRecentJob
+          ),
         ]);
       }
     }
@@ -320,7 +338,7 @@ export class BetterLock {
       }ms`
     );
 
-    this.endJob(job, [new WaitTimeoutError(this.options.name, job)]);
+    this.endJob(job, [new BetterLockWaitTimeoutError(this.options.name, job)]);
   }
 
   private onExecutionTimeout(job: LockJob<any>) {
@@ -330,7 +348,7 @@ export class BetterLock {
       }ms`
     );
 
-    this.endJob(job, [new ExecutionTimeoutError(this.options.name, job)]);
+    this.endJob(job, [new BetterLockExecutionTimeoutError(this.options.name, job)]);
   }
 
   private endJob(job: LockJob<any>, callbackArgs: any[]) {
@@ -387,14 +405,14 @@ export class BetterLock {
    * Currently executing job will not be interrupted.
    * @param [key]
    */
-  public abort(key: ILockKey) {
+  public abort(key?: ILockKey) {
     const queue = this.getQueue(key);
     queue.jobs.slice().forEach(job => {
-      this.endJob(job, [new JobAbortedError(this.options.name, job)]);
+      this.endJob(job, [new BetterLockJobAbortedError(this.options.name, job)]);
     });
     if (queue.active && !queue.active.executed_at) {
       // If we have a job holding this queue that hasn't been executed yet, abort it as well
-      this.endJob(queue.active, [new JobAbortedError(this.options.name, queue.active)]);
+      this.endJob(queue.active, [new BetterLockJobAbortedError(this.options.name, queue.active)]);
     }
   }
 

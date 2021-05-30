@@ -1,4 +1,5 @@
-import { LockJob } from './types';
+import { LockJob } from './internals';
+import { IErrorName } from './types';
 
 export class BetterLockError extends Error {
   /**
@@ -6,13 +7,27 @@ export class BetterLockError extends Error {
    */
   lock_name: string;
 
-  constructor(name, message, incomingStack = null) {
-    if (name) {
-      super(`[${name}] ${message}`);
+  /**
+   * Error name, maps to error's class name. Eg. BetterLockError.
+   */
+  name: IErrorName;
+
+  constructor(lockName, message, incomingStack = null) {
+    // Fix typescript custom Error prototype chain
+    // https://github.com/Microsoft/TypeScript/wiki/Breaking-Changes#extending-built-ins-like-error-array-and-map-may-no-longer-work
+    // https://github.com/reduardo7/ts-base-error/blob/master/src/index.ts
+    const trueProto = new.target.prototype;
+
+    if (lockName) {
+      super(`[${lockName}] ${message}`);
     } else {
       super(message);
     }
-    this.lock_name = name;
+
+    Object.setPrototypeOf(this, trueProto);
+
+    this.lock_name = lockName;
+    this.name = this.constructor.name as IErrorName;
 
     if (incomingStack) {
       const withoutFirstLine = incomingStack.split('\n').slice(1).join('\n');
@@ -25,33 +40,33 @@ export class BetterLockError extends Error {
 }
 
 export class BetterLockInternalError extends BetterLockError {
-  constructor(name, message) {
+  constructor(lockName, message) {
     const lastChar = message[message.length - 1];
     if (lastChar !== '.' && lastChar !== '!' && lastChar !== '?') {
       message += '.';
     }
-    super(name, message + ' This is probably a bug inside "better-lock" library');
+    super(lockName, message + ' This is probably a bug inside "better-lock" library');
   }
 }
 
-export class InvalidArgumentError extends BetterLockError {
-  constructor(name, public argument, expected, actual) {
-    super(name, `Argument "${argument}" must be ${expected} (got: "${actual}")`);
+export class BetterLockInvalidArgumentError extends BetterLockError {
+  constructor(lockName, public argument, expected, actual) {
+    super(lockName, `Argument "${argument}" must be ${expected} (got: "${actual}")`);
     this.argument = argument;
   }
 }
 
-export class WaitTimeoutError extends BetterLockError {
+export class BetterLockWaitTimeoutError extends BetterLockError {
   public job_id: number;
   public keys: string[];
   public enqueued_at: Date;
 
-  constructor(name, job: LockJob<any>) {
+  constructor(lockName, job: LockJob<any>) {
     const message = `${job} has timed out after ${
       new Date().valueOf() - job.enqueued_at.valueOf()
     }ms in wait queue`;
 
-    super(name, message, job.incoming_stack);
+    super(lockName, message, job.incoming_stack);
 
     this.job_id = job.id;
     this.keys = job.keys;
@@ -59,17 +74,17 @@ export class WaitTimeoutError extends BetterLockError {
   }
 }
 
-export class ExecutionTimeoutError extends BetterLockError {
+export class BetterLockExecutionTimeoutError extends BetterLockError {
   public job_id: number;
   public keys: string[];
   public executed_at: Date;
 
-  constructor(name, job: LockJob<any>) {
+  constructor(lockName, job: LockJob<any>) {
     const message = `${job} has timed out after ${
       new Date().valueOf() - job.executed_at.valueOf()
     }ms of execution`;
 
-    super(name, message, job.incoming_stack);
+    super(lockName, message, job.incoming_stack);
 
     this.job_id = job.id;
     this.keys = job.keys;
@@ -77,16 +92,16 @@ export class ExecutionTimeoutError extends BetterLockError {
   }
 }
 
-export class QueueOverflowError extends BetterLockError {
+export class BetterLockQueueOverflowError extends BetterLockError {
   public job_id: number;
   public keys: string[];
   public job_count: number;
   public kicked_out_job_id: number;
 
-  constructor(name, key, count, job: LockJob<any>) {
+  constructor(lockName, key, count, job: LockJob<any>) {
     const message = `Too many jobs (${count}) waiting for ${key}. The most recent job (${job}) was kicked out`;
 
-    super(name, message, job.incoming_stack);
+    super(lockName, message, job.incoming_stack);
 
     this.job_id = job.id;
     this.keys = job.keys;
@@ -95,12 +110,12 @@ export class QueueOverflowError extends BetterLockError {
   }
 }
 
-export class JobAbortedError extends BetterLockError {
+export class BetterLockJobAbortedError extends BetterLockError {
   public job_id: number;
   public keys: string[];
 
-  constructor(name, job) {
-    super(name, `${job} has been aborted by the user`, job.incoming_stack);
+  constructor(lockName, job) {
+    super(lockName, `${job} has been aborted by the user`, job.incoming_stack);
 
     this.job_id = job.id;
     this.keys = job.keys;

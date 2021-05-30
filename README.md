@@ -257,15 +257,28 @@ Handle empty key list
 
 #### **2.0.0** (_2021/05/28_)
 
-Major update. The entire library was rewritten in typescript, so you should now get typings in most editors.
+Major update. The entire library was rewritten in typescript, so you should now get typings in most editors. We also had to switch tests from mocha + chai to jest (easier ts integration).
 
-The API has remained largely the same. But there are a few minor breaking changes:
+The API and features have remained largely the same, just a bit of a refresh.
+
+Non-breaking and internal changes:
+
+- We now export all error names as a type script type. A few other types as well.
+- Errors now have `name` parameter, which matches these names.
+
+Breaking changes:
 
 - You can no longer use camel case versions of external-facing objects. Eg. you can no longer pass `waitTimeout` instead of `wait_timeout`. In retrospect, this was a pretty flaky API to maintain.
 
 - Internal `LockJob` class is no longer exported.
 
 - Also, errors no longer expose internal `LockJob` instances (`err.job`). We now instead provide the most important fields from the job (`id` and `keys`).
+
+- Error names have been renamed to have `BetterLock` prefix. Eg. `WaitTimeoutError` -> `BetterLockWaitTimeoutError`. This will influence `err.name` and `err.message` parameters. The idea here is, if you see `BetterLock` error in the wild, you will know what generated it.
+
+- We have renamed `BetterLock.BetterLockError` to `BetterLock.BaseError` and `BetterLock.BetterLockInternalError` to `BetterLock.InternalError` to better match the naming scheme.
+
+- Since Options are no longer a class but interface, we are no longer exporting them under `BetterLock.Options`. You can do `import {BetterLockOptions} from 'better-lock';` to get the typescript type.
 
 ### Development
 
