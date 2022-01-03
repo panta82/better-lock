@@ -1,4 +1,4 @@
-import { LockJob } from './internals';
+import { KeyQueue, LockJob } from './internals';
 import { IErrorName } from './types';
 
 export class BetterLockError extends Error {
@@ -99,7 +99,8 @@ export class BetterLockQueueOverflowError extends BetterLockError {
   public kicked_out_job_id: number;
 
   constructor(lockName, key, count, job: LockJob<any>) {
-    const message = `Too many jobs (${count}) waiting for ${key}. The most recent job (${job}) was kicked out`;
+    const keyDesignation = key === KeyQueue.DEFAULT_QUEUE_KEY ? '' : ` for key "${key}"`;
+    const message = `Too many jobs (${count}) are waiting${keyDesignation}. The most recent job (${job}) was kicked out`;
 
     super(lockName, message, job.incoming_stack);
 
