@@ -12,7 +12,7 @@ import * as tools from './tools';
 import { ICallback, ICallbackExecutor, ILockKey, IPromiseExecutor } from './types';
 
 /**
- * Create a better lock object.
+ * Main better lock class.
  */
 export class BetterLock {
   /**
@@ -23,10 +23,13 @@ export class BetterLock {
     promise_tester: p => p && typeof p.then === 'function',
   };
 
-  private options: IOptions;
-  private log: (msg: string) => void;
-  private queues: { [key: string]: KeyQueue };
+  private readonly options: IOptions;
+  private readonly log: (msg: string) => void;
+  private readonly queues: { [key: string]: KeyQueue };
 
+  /**
+   * Create a better lock instance
+   */
   constructor(options?: IOptions) {
     this.options = tools.assign({}, [BetterLock.DEFAULT_OPTIONS, options]);
     this.log = tools.makeLog(this.options.name, this.options.log);

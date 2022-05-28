@@ -26,7 +26,9 @@ npm install --save better-lock
 yarn add better-lock
 ```
 
-### Usage examples
+### Documentation
+
+Full docs: <https://panta82.github.io/better-lock/>
 
 ##### Minimal example
 
@@ -164,7 +166,7 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
 
 ### Options
 
-All available options can be seen [here](src/options.ts).
+All available options can be seen [here](https://panta82.github.io/better-lock/interfaces/BetterLockOptions).
 
 `BetterLockOptions` are provided when you construct a lock instance. A subset of options given in `LockJobOptions` can be provided when you call `lock.acquire`, as the last argument.
 
@@ -188,7 +190,7 @@ Most commonly used options are:
 - `queue_size`  
   Max queue size for waiting jobs.
 
-Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. That can be seen [here](src/better_lock.ts). During runtime, you can change the defaults like this:
+Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. During runtime, you can change the defaults like this:
 
 ```javascript
 import BetterLock from 'better-lock';
@@ -214,6 +216,10 @@ The library is not a good fit if:
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
+
+#### **2.0.3** (_2022/05/28_)
+
+Introduce generated API docs. Remove beta tag from npm version.
 
 #### **2.0.0** (_2021/05/30_)
 

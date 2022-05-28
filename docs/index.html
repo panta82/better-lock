@@ -1,0 +1,211 @@
+<!DOCTYPE html><html class="default"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>better-lock</title><meta name="description" content="Documentation for better-lock"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script async src="assets/search.js" id="search-script"></script></head><body><script>document.body.classList.add(localStorage.getItem("tsd-theme") || "os")</script><header><div class="tsd-page-toolbar"><div class="container"><div class="table-wrap"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget search no-caption">Search</label><input type="text" id="tsd-search-field"/></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">better-lock</a></div><div class="table-cell" id="tsd-widgets"><div id="tsd-filter"><a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a><div class="tsd-filter-group"><div class="tsd-select" id="tsd-filter-visibility"><span class="tsd-select-label">All</span><ul class="tsd-select-list"><li data-value="public">Public</li><li data-value="protected">Public/Protected</li><li data-value="private" class="selected">All</li></ul></div> <input type="checkbox" id="tsd-filter-inherited" checked/><label class="tsd-widget" for="tsd-filter-inherited">Inherited</label></div></div><a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a></div></div></div></div><div class="tsd-page-title"><div class="container"><h1>better-lock </h1></div></div></header><div class="container container-main"><div class="row"><div class="col-8 col-content"><div class="tsd-panel tsd-typography">
+<a href="#better-lock" id="better-lock" style="color: inherit; text-decoration: none;">
+  <h1>Better Lock</h1>
+</a>
+<p>A (better) node.js lock library.</p>
+<p><img src="https://travis-ci.org/panta82/better-lock.svg?branch=master" alt="Travis tests"></p>
+
+<a href="#features" id="features" style="color: inherit; text-decoration: none;">
+  <h3>Features</h3>
+</a>
+<ul>
+<li>Typescript-ready</li>
+<li>Named and keyed locks</li>
+<li>Queue and execution timeouts</li>
+<li>Queue size limit</li>
+<li>Lock on multiple keys</li>
+<li>Extended stack traces</li>
+<li>Promise and callback interface</li>
+<li>JSDoc annotations</li>
+<li>Good error messages</li>
+<li>Unit tests, good code coverage</li>
+<li>No dependencies</li>
+</ul>
+
+<a href="#installation" id="installation" style="color: inherit; text-decoration: none;">
+  <h3>Installation</h3>
+</a>
+<pre><code class="language-bash"><span class="hl-0">npm install --save better-lock</span><br/><span class="hl-1"># or</span><br/><span class="hl-0">yarn add better-lock</span>
+</code></pre>
+
+<a href="#usage-examples" id="usage-examples" style="color: inherit; text-decoration: none;">
+  <h3>Usage examples</h3>
+</a>
+
+<a href="#minimal-example" id="minimal-example" style="color: inherit; text-decoration: none;">
+  <h5>Minimal example</h5>
+</a>
+<pre><code class="language-javascript"><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">lock</span><span class="hl-0"> = </span><span class="hl-2">new</span><span class="hl-0"> </span><span class="hl-4">BetterLock</span><span class="hl-0">();</span><br/><br/><span class="hl-5">try</span><span class="hl-0"> {</span><br/><span class="hl-0">  </span><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">res</span><span class="hl-0"> = </span><span class="hl-5">await</span><span class="hl-0"> </span><span class="hl-6">lock</span><span class="hl-0">.</span><span class="hl-4">acquire</span><span class="hl-0">(</span><span class="hl-2">async</span><span class="hl-0"> () </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-1">// Inside the lock. It will stay closed until the promise you return resolves or rejects.</span><br/><span class="hl-0">    </span><span class="hl-5">await</span><span class="hl-0"> </span><span class="hl-4">doSomeAsyncTask</span><span class="hl-0">();</span><br/><span class="hl-0">    </span><span class="hl-5">return</span><span class="hl-0"> </span><span class="hl-7">&#39;my result&#39;</span><span class="hl-0">;</span><br/><span class="hl-0">  });</span><br/><br/><span class="hl-0">  </span><span class="hl-1">// Outside the lock. You will get whatever the promise chain has returned.</span><br/><span class="hl-0">  </span><span class="hl-6">console</span><span class="hl-0">.</span><span class="hl-4">log</span><span class="hl-0">(</span><span class="hl-6">res</span><span class="hl-0">); </span><span class="hl-1">// &quot;my result&quot;</span><br/><span class="hl-0">}</span><br/><span class="hl-5">catch</span><span class="hl-0"> (</span><span class="hl-6">err</span><span class="hl-0">) {</span><br/><span class="hl-0">  </span><span class="hl-1">// Either your or BetterLock&#39;s error</span><br/><span class="hl-0">}</span>
+</code></pre>
+
+<a href="#advanced-example" id="advanced-example" style="color: inherit; text-decoration: none;">
+  <h5>Advanced example</h5>
+</a>
+<pre><code class="language-typescript"><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">lock</span><span class="hl-0"> = </span><span class="hl-2">new</span><span class="hl-0"> </span><span class="hl-4">BetterLock</span><span class="hl-0">({</span><br/><span class="hl-0">  </span><span class="hl-6">name:</span><span class="hl-0"> </span><span class="hl-7">&#39;FileLock&#39;</span><span class="hl-0">,                  </span><span class="hl-1">// To be used in error reporting and logging</span><br/><span class="hl-0">  </span><span class="hl-6">log:</span><span class="hl-0"> </span><span class="hl-6">winstonLogger</span><span class="hl-0">.</span><span class="hl-6">debug</span><span class="hl-0">,          </span><span class="hl-1">// Give it your logger with appropeiate level</span><br/><span class="hl-0">  </span><span class="hl-6">wait_timeout:</span><span class="hl-0"> </span><span class="hl-8">1000</span><span class="hl-0"> * </span><span class="hl-8">30</span><span class="hl-0">,           </span><span class="hl-1">// Max 30 sec wait in queue</span><br/><span class="hl-0">  </span><span class="hl-6">execution_timeout:</span><span class="hl-0"> </span><span class="hl-8">1000</span><span class="hl-0"> * </span><span class="hl-8">60</span><span class="hl-0"> * </span><span class="hl-8">5</span><span class="hl-0">,  </span><span class="hl-1">// Time out after 5 minutes</span><br/><span class="hl-0">  </span><span class="hl-6">queue_size:</span><span class="hl-0"> </span><span class="hl-8">1</span><span class="hl-0">,                     </span><span class="hl-1">// At most one pending job</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-2">async</span><span class="hl-0"> </span><span class="hl-2">function</span><span class="hl-0"> </span><span class="hl-4">processFile</span><span class="hl-0">(</span><span class="hl-6">filename</span><span class="hl-0">) {</span><br/><span class="hl-0">  </span><span class="hl-5">try</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">result</span><span class="hl-0"> = </span><span class="hl-5">await</span><span class="hl-0"> </span><span class="hl-6">lock</span><span class="hl-0">.</span><span class="hl-4">acquire</span><span class="hl-0">(</span><span class="hl-6">filename</span><span class="hl-0">, </span><span class="hl-2">async</span><span class="hl-0"> () </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">      </span><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">appended</span><span class="hl-0"> = </span><span class="hl-5">await</span><span class="hl-0"> </span><span class="hl-4">appendToFile</span><span class="hl-0">(</span><span class="hl-6">filename</span><span class="hl-0">);</span><br/><span class="hl-0">      </span><span class="hl-5">return</span><span class="hl-0"> </span><span class="hl-4">updateDb</span><span class="hl-0">(</span><span class="hl-6">appended</span><span class="hl-0">);</span><br/><span class="hl-0">    });</span><br/><span class="hl-0">    </span><span class="hl-5">return</span><span class="hl-0"> {</span><br/><span class="hl-0">      </span><span class="hl-6">status:</span><span class="hl-0"> </span><span class="hl-2">true</span><span class="hl-0">,</span><br/><span class="hl-0">      </span><span class="hl-6">result</span><br/><span class="hl-0">    };</span><br/><span class="hl-0">  }</span><br/><span class="hl-0">  </span><span class="hl-5">catch</span><span class="hl-0"> (</span><span class="hl-6">err</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-5">if</span><span class="hl-0"> (</span><span class="hl-6">err</span><span class="hl-0"> </span><span class="hl-2">instanceof</span><span class="hl-0"> </span><span class="hl-9">BetterLock</span><span class="hl-0">.</span><span class="hl-9">QueueOverflowError</span><span class="hl-0">) {</span><br/><span class="hl-0">      </span><span class="hl-1">// The job was discarded</span><br/><span class="hl-0">      </span><span class="hl-5">return</span><span class="hl-0"> {</span><br/><span class="hl-0">        </span><span class="hl-6">status:</span><span class="hl-0"> </span><span class="hl-2">false</span><br/><span class="hl-0">      };</span><br/><span class="hl-0">    }</span><br/><br/><span class="hl-0">    </span><span class="hl-5">if</span><span class="hl-0"> (</span><span class="hl-6">err</span><span class="hl-0"> </span><span class="hl-2">instanceof</span><span class="hl-0"> </span><span class="hl-9">BetterLock</span><span class="hl-0">.</span><span class="hl-9">ExecutionTimeoutError</span><span class="hl-0">) {</span><br/><span class="hl-0">      </span><span class="hl-6">winstonLogger</span><span class="hl-0">.</span><span class="hl-4">warn</span><span class="hl-0">(</span><span class="hl-7">&#39;Potential swallowed callback! Stack trace to the entry site:&#39;</span><span class="hl-0">, </span><span class="hl-6">err</span><span class="hl-0">.</span><span class="hl-6">stack</span><span class="hl-0">);</span><br/><span class="hl-0">    }</span><br/><span class="hl-0">    </span><span class="hl-5">throw</span><span class="hl-0"> </span><span class="hl-6">err</span><span class="hl-0">;</span><br/><span class="hl-0">  }</span><br/><span class="hl-0">}</span><br/>
+</code></pre>
+
+<a href="#locking-on-multiple-keys" id="locking-on-multiple-keys" style="color: inherit; text-decoration: none;">
+  <h5>Locking on multiple keys</h5>
+</a>
+<pre><code class="language-javascript"><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">userLock</span><span class="hl-0"> = </span><span class="hl-2">new</span><span class="hl-0"> </span><span class="hl-4">BetterLock</span><span class="hl-0">({</span><br/><span class="hl-0">  </span><span class="hl-6">name:</span><span class="hl-0"> </span><span class="hl-7">&#39;User lock&#39;</span><span class="hl-0">,</span><br/><span class="hl-0">  </span><span class="hl-6">executionTimeout:</span><span class="hl-0"> </span><span class="hl-8">1000</span><span class="hl-0"> * </span><span class="hl-8">60</span><span class="hl-0"> * </span><span class="hl-8">60</span><span class="hl-0">, </span><span class="hl-1">// Note you can also use camelCase</span><br/><span class="hl-0">});</span><br/><br/><span class="hl-2">function</span><span class="hl-0"> </span><span class="hl-4">transferBetweenUsers</span><span class="hl-0">(</span><span class="hl-6">fromId</span><span class="hl-0">, </span><span class="hl-6">toId</span><span class="hl-0">, </span><span class="hl-6">amount</span><span class="hl-0">) {</span><br/><span class="hl-0">  </span><span class="hl-6">userLock</span><span class="hl-0">.</span><span class="hl-4">acquire</span><span class="hl-0">([</span><span class="hl-6">fromId</span><span class="hl-0">, </span><span class="hl-6">toId</span><span class="hl-0">], () </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-5">return</span><span class="hl-0"> </span><span class="hl-9">Promise</span><span class="hl-0">.</span><span class="hl-4">all</span><span class="hl-0">([</span><br/><span class="hl-0">      </span><span class="hl-6">User</span><span class="hl-0">.</span><span class="hl-4">get</span><span class="hl-0">(</span><span class="hl-6">fromId</span><span class="hl-0">),</span><br/><span class="hl-0">      </span><span class="hl-6">User</span><span class="hl-0">.</span><span class="hl-4">get</span><span class="hl-0">(</span><span class="hl-6">toId</span><span class="hl-0">),</span><br/><span class="hl-0">    ]).</span><span class="hl-4">then</span><span class="hl-0">(([</span><span class="hl-6">fromUser</span><span class="hl-0">, </span><span class="hl-6">toUser</span><span class="hl-0">]) </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">      </span><span class="hl-6">fromUser</span><span class="hl-0">.</span><span class="hl-6">amount</span><span class="hl-0"> -= </span><span class="hl-6">amount</span><span class="hl-0">;</span><br/><span class="hl-0">      </span><span class="hl-6">toUser</span><span class="hl-0">.</span><span class="hl-6">amount</span><span class="hl-0"> += </span><span class="hl-6">amount</span><span class="hl-0">;</span><br/><span class="hl-0">      </span><span class="hl-5">return</span><span class="hl-0"> </span><span class="hl-9">Promise</span><span class="hl-0">.</span><span class="hl-4">all</span><span class="hl-0">([</span><br/><span class="hl-0">        </span><span class="hl-6">user1</span><span class="hl-0">.</span><span class="hl-4">save</span><span class="hl-0">(),</span><br/><span class="hl-0">        </span><span class="hl-6">user2</span><span class="hl-0">.</span><span class="hl-4">save</span><span class="hl-0">(),</span><br/><span class="hl-0">      ]);</span><br/><span class="hl-0">    });</span><br/><span class="hl-0">  }).</span><span class="hl-4">then</span><span class="hl-0">(() </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-6">console</span><span class="hl-0">.</span><span class="hl-4">log</span><span class="hl-0">(</span><span class="hl-7">&#39;Transfer completed&#39;</span><span class="hl-0">);</span><br/><span class="hl-0">  });</span><br/><span class="hl-0">}</span>
+</code></pre>
+
+<a href="#using-callback-interface" id="using-callback-interface" style="color: inherit; text-decoration: none;">
+  <h5>Using callback interface</h5>
+</a>
+<pre><code class="language-javascript"><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">BetterLock</span><span class="hl-0"> = </span><span class="hl-4">require</span><span class="hl-0">(</span><span class="hl-7">&#39;better-lock&#39;</span><span class="hl-0">);</span><br/><br/><span class="hl-2">const</span><span class="hl-0"> </span><span class="hl-3">lock</span><span class="hl-0"> = </span><span class="hl-2">new</span><span class="hl-0"> </span><span class="hl-4">BetterLock</span><span class="hl-0">();</span><br/><span class="hl-1">//...</span><br/><span class="hl-6">lock</span><span class="hl-0">.</span><span class="hl-4">acquire</span><span class="hl-0">(</span><span class="hl-6">done</span><span class="hl-0"> </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">  </span><span class="hl-1">// Inside the lock</span><br/><span class="hl-0">  </span><span class="hl-4">doMyAsyncStuffHere</span><span class="hl-0">((</span><span class="hl-6">err</span><span class="hl-0">) </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">    </span><span class="hl-1">// Call done when done</span><br/><span class="hl-0">    </span><span class="hl-4">done</span><span class="hl-0">(</span><span class="hl-6">err</span><span class="hl-0">);</span><br/><span class="hl-0">  });</span><br/><span class="hl-0">}, (</span><span class="hl-6">err</span><span class="hl-0">, </span><span class="hl-6">result</span><span class="hl-0">) </span><span class="hl-2">=&gt;</span><span class="hl-0"> {</span><br/><span class="hl-0">  </span><span class="hl-1">// Outside the lock</span><br/><span class="hl-0">  </span><span class="hl-5">if</span><span class="hl-0"> (</span><span class="hl-6">err</span><span class="hl-0">) {</span><br/><span class="hl-0">    </span><span class="hl-1">// Either your or BetterLock&#39;s error</span><br/><span class="hl-0">    </span><span class="hl-6">console</span><span class="hl-0">.</span><span class="hl-4">error</span><span class="hl-0">(</span><span class="hl-6">err</span><span class="hl-0">);</span><br/><span class="hl-0">  }</span><br/><span class="hl-0">});</span>
+</code></pre>
+<p>You can see a bunch more usage examples in the spec file, <a href="spec/better_lock.spec.js">here</a>;</p>
+
+<a href="#api" id="api" style="color: inherit; text-decoration: none;">
+  <h3>API</h3>
+</a>
+<ul>
+<li><p><code>new BetterLock(options)</code><br>Create a new instance of <code>BetterLock</code>. Options should match interface <code>BetterLockOptions</code>. See below for details.</p>
+</li>
+<li><p><code>BetterLock.acquire([key], executor, [callback], [jobOptions])</code><br>The main method you&#39;ll want to call. For each <code>key</code>, given <code>executor</code> will be called only one at a time. If you don&#39;t provide <code>callback</code>, it will return a promise that will be resolved with whatever <code>executor</code> returns.</p>
+<ul>
+<li><code>key</code>: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns. Eg. this might be a database record id or filename.</li>
+<li><code>executor</code>: Function that will be called within the lock. This function should have one of two forms.<ol>
+<li><em>Without arguments</em>, in which case it should return a promise. Lock will remain locked until the promise resolves.</li>
+<li><em>With single <code>done</code></em> argument. In this case, the executor should call <code>done(err, res)</code> once it is done. Arguments passed to done will be passed to the callback of the lock.</li>
+</ol>
+</li>
+<li><code>callback</code>: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to <code>done</code>) will be passed along. This can be used in addition to the returned promise.</li>
+<li><code>jobOptions</code>: An object that should match interface <code>BetterLockJobOptions</code>. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).</li>
+</ul>
+</li>
+<li><p><code>BetterLock.canAcquire([key])</code><br>Returns true if given key can be acquired.</p>
+</li>
+<li><p><code>BetterLock.abort([key])</code><br>Abort all jobs for a given key (or from the default job queue, if no key is given). Job executors will not be called. Callbacks will be called with <code>JobAbortedError</code>. Currently executing job will not be interrupted.</p>
+</li>
+<li><p><code>BetterLock.abortAll()</code><br>Abort all jobs for all keys. This is suitable to be called during shutdown of your app.</p>
+</li>
+</ul>
+
+<a href="#options" id="options" style="color: inherit; text-decoration: none;">
+  <h3>Options</h3>
+</a>
+<p>All available options can be seen <a href="src/options.ts">here</a>.</p>
+<p><code>BetterLockOptions</code> are provided when you construct a lock instance. A subset of options given in <code>LockJobOptions</code> can be provided when you call <code>lock.acquire</code>, as the last argument.</p>
+<p>Example:</p>
+<pre><code class="language-javascript"><span class="hl-6">lock</span><span class="hl-0">.</span><span class="hl-4">acquire</span><span class="hl-0">(</span><span class="hl-6">executor</span><span class="hl-0">, </span><span class="hl-6">callback</span><span class="hl-0">, {</span><br/><span class="hl-0">  </span><span class="hl-6">wait_timeout:</span><span class="hl-0"> </span><span class="hl-8">1000</span><br/><span class="hl-0">});</span>
+</code></pre>
+<p>Most commonly used options are:</p>
+<ul>
+<li><p><code>wait_timeout</code><br>How long can jobs wait in queue before timing out (ms). Null to disable timeout.</p>
+</li>
+<li><p><code>execution_timeout</code><br>How long can a job be executing before timing out (ms). Null to disable timeout.
+If you do that, though, and you have a swallowed callback, the lock can remain locked permanently.</p>
+</li>
+<li><p><code>queue_size</code><br>Max queue size for waiting jobs.</p>
+</li>
+</ul>
+<p>Default options are a static member <code>DEFAULT_OPTIONS</code> on the <code>BetterLock</code> class. That can be seen <a href="src/better_lock.ts">here</a>. During runtime, you can change the defaults like this:</p>
+<pre><code class="language-javascript"><span class="hl-5">import</span><span class="hl-0"> </span><span class="hl-6">BetterLock</span><span class="hl-0"> </span><span class="hl-5">from</span><span class="hl-0"> </span><span class="hl-7">&#39;better-lock&#39;</span><span class="hl-0">;</span><br/><br/><span class="hl-6">BetterLock</span><span class="hl-0">.</span><span class="hl-3">DEFAULT_OPTIONS</span><span class="hl-0">.</span><span class="hl-6">wait_timeout</span><span class="hl-0"> = </span><span class="hl-8">1000</span><span class="hl-0">;</span>
+</code></pre>
+
+<a href="#when-to-use" id="when-to-use" style="color: inherit; text-decoration: none;">
+  <h3>When to use</h3>
+</a>
+<p>This library is a good fit if:</p>
+<ul>
+<li>You need a local lock in your node.js application.</li>
+<li>You have some advanced needs, like multiple keys per lock, timeouts, aborting...</li>
+<li>You like good error messages, with full stack traces.</li>
+<li>You like good types, either through typescript or JSDoc comments</li>
+</ul>
+<p>The library is not a good fit if:</p>
+<ul>
+<li><p><strong>You need lock reentrancy.</strong><br>There is no good solution for this in node.js that I know of. And this library doesn&#39;t offer any.</p>
+</li>
+<li><p><strong>You need a shared lock between different nodes</strong><br>This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.</p>
+</li>
+</ul>
+
+<a href="#change-log" id="change-log" style="color: inherit; text-decoration: none;">
+  <h3>Change log</h3>
+</a>
+
+<a href="#200-20210530" id="200-20210530" style="color: inherit; text-decoration: none;">
+  <h4><strong>2.0.0</strong> (<em>2021/05/30</em>)</h4>
+</a>
+<p>Major update. The entire library was rewritten in typescript, so you should now get typings in most editors. We also had to switch tests from mocha + chai to jest (easier ts integration).</p>
+<p>The API and features have remained largely the same, just a bit of a refresh.</p>
+<p>Non-breaking and internal changes:</p>
+<ul>
+<li>We now export all error names as a type script type. A few other types as well.</li>
+<li>Errors now have <code>name</code> parameter, which matches these names.</li>
+</ul>
+<p>Breaking changes:</p>
+<ul>
+<li><p>You can no longer use camel case versions of external-facing objects. Eg. you can no longer pass <code>waitTimeout</code> instead of <code>wait_timeout</code>. In retrospect, this was a pretty flaky API to maintain.</p>
+</li>
+<li><p>Internal <code>LockJob</code> class is no longer exported.</p>
+</li>
+<li><p>Also, errors no longer expose internal <code>LockJob</code> instances (<code>err.job</code>). We now instead provide the most important fields from the job (<code>id</code> and <code>keys</code>).</p>
+</li>
+<li><p>Error names have been renamed to have <code>BetterLock</code> prefix. Eg. <code>WaitTimeoutError</code> -&gt; <code>BetterLockWaitTimeoutError</code>. This will influence <code>err.name</code> and <code>err.message</code> parameters. The idea here is, if you see <code>BetterLock</code> error in the wild, you will know what generated it.</p>
+</li>
+<li><p>We have renamed <code>BetterLock.BetterLockError</code> to <code>BetterLock.BaseError</code> and <code>BetterLock.BetterLockInternalError</code> to <code>BetterLock.InternalError</code> to better match the naming scheme.</p>
+</li>
+<li><p>Since Options are no longer a class but interface, we are no longer exporting them under <code>BetterLock.Options</code>. You can do <code>import {BetterLockOptions} from &#39;better-lock&#39;;</code> to get the typescript type.</p>
+</li>
+</ul>
+
+<a href="#101-20190128" id="101-20190128" style="color: inherit; text-decoration: none;">
+  <h4><strong>1.0.1</strong> (<em>2019/01/28</em>)</h4>
+</a>
+<p>Handle empty key list</p>
+
+<a href="#100-20190128" id="100-20190128" style="color: inherit; text-decoration: none;">
+  <h4><strong>1.0.0</strong> (<em>2019/01/28</em>)</h4>
+</a>
+<p>Major version bump.</p>
+<ul>
+<li>Added multi-key locks and refactored a bunch of internals.</li>
+<li>Removed <code>OVERFLOW_STRATEGIES</code> and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.</li>
+</ul>
+
+<a href="#031-20181001" id="031-20181001" style="color: inherit; text-decoration: none;">
+  <h4><strong>0.3.1</strong> (<em>2018/10/01</em>)</h4>
+</a>
+<p>Updated CI to use the current node versions (0.8 &amp; 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.</p>
+
+<a href="#030-20181001" id="030-20181001" style="color: inherit; text-decoration: none;">
+  <h4><strong>0.3.0</strong> (<em>2018/10/01</em>)</h4>
+</a>
+<p>Can abort jobs waiting in queue.</p>
+
+<a href="#021-20180927" id="021-20180927" style="color: inherit; text-decoration: none;">
+  <h4><strong>0.2.1</strong> (<em>2018/09/27</em>)</h4>
+</a>
+<ul>
+<li>Better and customizable Promise detection.</li>
+<li>Restored DEFAULT_OPTIONS.</li>
+</ul>
+
+<a href="#020-20180927" id="020-20180927" style="color: inherit; text-decoration: none;">
+  <h4><strong>0.2.0</strong> (<em>2018/09/27</em>)</h4>
+</a>
+<p>Code reformat, better pattern for loading options. No feature upgrades.</p>
+
+<a href="#011-20180604" id="011-20180604" style="color: inherit; text-decoration: none;">
+  <h4><strong>0.1.1</strong> (<em>2018/06/04</em>)</h4>
+</a>
+<p>You can now use a Number as job name</p>
+
+<a href="#development" id="development" style="color: inherit; text-decoration: none;">
+  <h3>Development</h3>
+</a>
+<p>Fork, then git clone. The project is already set up with a WebStorm project, if that&#39;s your cup of tee.</p>
+<p>To run tests, with coverage:</p>
+<pre><code><span class="hl-6">npm</span><span class="hl-0"> </span><span class="hl-6">run</span><span class="hl-0"> </span><span class="hl-6">test</span>
+</code></pre>
+<p>If you want to contribute, create a branch off master, do your work and then make a pull request against master. Unit tests would be appreciated.</p>
+
+<a href="#license" id="license" style="color: inherit; text-decoration: none;">
+  <h2>License</h2>
+</a>
+<p><a href="./LICENSE">MIT</a></p>
+</div></div><div class="col-4 col-menu menu-sticky-wrap menu-highlight"><nav class="tsd-navigation primary"><ul><li class="current"><a href="modules.html">Exports</a></li><li class=" tsd-kind-namespace"><a href="modules/_internal_.html">&lt;internal&gt;</a></li></ul></nav><nav class="tsd-navigation secondary menu-sticky"><ul><li class="tsd-kind-reference"><a href="modules.html#default" class="tsd-kind-icon">default</a></li><li class="tsd-kind-class"><a href="classes/BetterLockError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockExecutionTimeoutError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Execution<wbr/>Timeout<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockInternalError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Internal<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockInvalidArgumentError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Invalid<wbr/>Argument<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockJobAbortedError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Job<wbr/>Aborted<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockQueueOverflowError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Queue<wbr/>Overflow<wbr/>Error</a></li><li class="tsd-kind-class"><a href="classes/BetterLockWaitTimeoutError.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Wait<wbr/>Timeout<wbr/>Error</a></li><li class="tsd-kind-interface"><a href="interfaces/BetterLockJobOptions.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Job<wbr/>Options</a></li><li class="tsd-kind-interface"><a href="interfaces/BetterLockOptions.html" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Options</a></li><li class="tsd-kind-type-alias"><a href="modules.html#BetterLockErrorName" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Error<wbr/>Name</a></li><li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="modules.html#BetterLockExecutor" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Executor</a></li><li class="tsd-kind-type-alias"><a href="modules.html#BetterLockKey" class="tsd-kind-icon">Better<wbr/>Lock<wbr/>Key</a></li><li class="tsd-kind-variable"><a href="modules.html#BetterLock" class="tsd-kind-icon">Better<wbr/>Lock</a></li></ul></nav></div></div></div><footer class="with-border-bottom"><div class="container"><h2>Legend</h2><div class="tsd-legend-group"><ul class="tsd-legend"><li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li><li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li></ul><ul class="tsd-legend"><li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li><li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li></ul><ul class="tsd-legend"><li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li></ul></div><h2>Settings</h2><p>Theme <select id="theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></p></div></footer><div class="container tsd-generator"><p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div><div class="overlay"></div><script src="assets/main.js"></script></body></html>
