@@ -138,7 +138,7 @@ lock.acquire(done => {
 });
 ```
 
-You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.js);
+You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.ts);
 
 ### API
 
