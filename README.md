@@ -22,6 +22,8 @@ A (better) node.js lock library.
 
 ```bash
 npm install --save better-lock
+# or
+yarn add better-lock
 ```
 
 ### Usage examples
@@ -186,8 +188,6 @@ Most commonly used options are:
 - `queue_size`  
   Max queue size for waiting jobs.
 
-Options are presented using `snake_case`, but you can also provide them using `camelCase` keys, if that better suits your code style (eg. `extend_stack_traces` becomes `extendStackTraces`).
-
 Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. That can be seen [here](src/better_lock.ts). During runtime, you can change the defaults like this:
 
 ```javascript
@@ -196,64 +196,24 @@ import BetterLock from 'better-lock';
 BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
 ```
 
-### Motivation
+### When to use
 
-I needed something like [async-lock](https://github.com/rogierschouten/async-lock), but a bit easier to debug.
+This library is a good fit if:
 
-This library improves upon `async-lock` in following ways:
+- You need a local lock in your node.js application.
+- You have some advanced needs, like multiple keys per lock, timeouts, aborting...
+- You like good error messages, with full stack traces.
+- You like good types, either through typescript or JSDoc comments
 
-- Good error messages and log facility
-- Added features (execution timeout, abort jobs...)
-- Extended stack traces (so when you get an error, you have a full stack trace of the original calling code)
-- JSDoc comments (helps if you're using an IDE)
+The library is not a good fit if:
 
-Following features are present in both libraries:
+- **You need lock reentrancy.**  
+  There is no good solution for this in node.js that I know of. And this library doesn't offer any.
 
-- Multiple keys per lock instance
-- Acquire multiple keys in a single call
-- Interface, with executor and the callback function
-- Promises
-- Timeout and queue limit
-
-Following features are present in `async-lock`, but not here:
-
-- Domain reentrancy (domains are going away)
-
-**NOTE:** If you want to sync multiple node instances doing the same operation, this library will not help you. You need something that works over network and can use a shared arbiter of who gets the lock (eg. redis).
+- **You need a shared lock between different nodes**  
+  This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
-
-#### **0.1.1** (_2018/06/04_)
-
-You can now use a Number as job name
-
-#### **0.2.0** (_2018/09/27_)
-
-Code reformat, better pattern for loading options. No feature upgrades.
-
-#### **0.2.1** (_2018/09/27_)
-
-- Better and customizable Promise detection.
-- Restored DEFAULT_OPTIONS.
-
-#### **0.3.0** (_2018/10/01_)
-
-Can abort jobs waiting in queue.
-
-#### **0.3.1** (_2018/10/01_)
-
-Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
-
-#### **1.0.0** (_2019/01/28_)
-
-Major version bump.
-
-- Added multi-key locks and refactored a bunch of internals.
-- Removed `OVERFLOW_STRATEGIES` and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.
-
-#### **1.0.1** (_2019/01/28_)
-
-Handle empty key list
 
 #### **2.0.0** (_2021/05/30_)
 
@@ -279,6 +239,38 @@ Breaking changes:
 - We have renamed `BetterLock.BetterLockError` to `BetterLock.BaseError` and `BetterLock.BetterLockInternalError` to `BetterLock.InternalError` to better match the naming scheme.
 
 - Since Options are no longer a class but interface, we are no longer exporting them under `BetterLock.Options`. You can do `import {BetterLockOptions} from 'better-lock';` to get the typescript type.
+
+#### **1.0.1** (_2019/01/28_)
+
+Handle empty key list
+
+#### **1.0.0** (_2019/01/28_)
+
+Major version bump.
+
+- Added multi-key locks and refactored a bunch of internals.
+- Removed `OVERFLOW_STRATEGIES` and related options, which is mostly the reason for the major version bump. The library should otherwise work the same.
+
+#### **0.3.1** (_2018/10/01_)
+
+Updated CI to use the current node versions (0.8 & 0.10). Older node versions should continue to work, but are no longer tested. Also, README updates.
+
+#### **0.3.0** (_2018/10/01_)
+
+Can abort jobs waiting in queue.
+
+#### **0.2.1** (_2018/09/27_)
+
+- Better and customizable Promise detection.
+- Restored DEFAULT_OPTIONS.
+
+#### **0.2.0** (_2018/09/27_)
+
+Code reformat, better pattern for loading options. No feature upgrades.
+
+#### **0.1.1** (_2018/06/04_)
+
+You can now use a Number as job name
 
 ### Development
 
