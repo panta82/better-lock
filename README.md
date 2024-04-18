@@ -2,8 +2,6 @@
 
 A (better) node.js lock library.
 
-![Travis tests](https://travis-ci.org/panta82/better-lock.svg?branch=master)
-
 ### Features
 
 - Typescript-ready
@@ -44,8 +42,7 @@ try {
 
   // Outside the lock. You will get whatever the promise chain has returned.
   console.log(res); // "my result"
-}
-catch (err) {
+} catch (err) {
   // Either your or BetterLock's error
 }
 ```
@@ -54,11 +51,11 @@ catch (err) {
 
 ```typescript
 const lock = new BetterLock({
-  name: 'FileLock',                  // To be used in error reporting and logging
-  log: winstonLogger.debug,          // Give it your logger with appropeiate level
-  wait_timeout: 1000 * 30,           // Max 30 sec wait in queue
-  execution_timeout: 1000 * 60 * 5,  // Time out after 5 minutes
-  queue_size: 1,                     // At most one pending job
+  name: 'FileLock', // To be used in error reporting and logging
+  log: winstonLogger.debug, // Give it your logger with appropeiate level
+  wait_timeout: 1000 * 30, // Max 30 sec wait in queue
+  execution_timeout: 1000 * 60 * 5, // Time out after 5 minutes
+  queue_size: 1, // At most one pending job
 });
 
 async function processFile(filename) {
@@ -69,14 +66,13 @@ async function processFile(filename) {
     });
     return {
       status: true,
-      result
+      result,
     };
-  }
-  catch (err) {
+  } catch (err) {
     if (err instanceof BetterLock.QueueOverflowError) {
       // The job was discarded
       return {
-        status: false
+        status: false,
       };
     }
 
@@ -86,7 +82,6 @@ async function processFile(filename) {
     throw err;
   }
 }
-
 ```
 
 ##### Locking on multiple keys
@@ -98,21 +93,17 @@ const userLock = new BetterLock({
 });
 
 function transferBetweenUsers(fromId, toId, amount) {
-  userLock.acquire([fromId, toId], () => {
-    return Promise.all([
-      User.get(fromId),
-      User.get(toId),
-    ]).then(([fromUser, toUser]) => {
-      fromUser.amount -= amount;
-      toUser.amount += amount;
-      return Promise.all([
-        user1.save(),
-        user2.save(),
-      ]);
+  userLock
+    .acquire([fromId, toId], () => {
+      return Promise.all([User.get(fromId), User.get(toId)]).then(([fromUser, toUser]) => {
+        fromUser.amount -= amount;
+        toUser.amount += amount;
+        return Promise.all([user1.save(), user2.save()]);
+      });
+    })
+    .then(() => {
+      console.log('Transfer completed');
     });
-  }).then(() => {
-    console.log('Transfer completed');
-  });
 }
 ```
 
@@ -123,19 +114,22 @@ const BetterLock = require('better-lock');
 
 const lock = new BetterLock();
 //...
-lock.acquire(done => {
-  // Inside the lock
-  doMyAsyncStuffHere((err) => {
-    // Call done when done
-    done(err);
-  });
-}, (err, result) => {
-  // Outside the lock
-  if (err) {
-    // Either your or BetterLock's error
-    console.error(err);
+lock.acquire(
+  done => {
+    // Inside the lock
+    doMyAsyncStuffHere(err => {
+      // Call done when done
+      done(err);
+    });
+  },
+  (err, result) => {
+    // Outside the lock
+    if (err) {
+      // Either your or BetterLock's error
+      console.error(err);
+    }
   }
-});
+);
 ```
 
 You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.ts);
@@ -174,7 +168,7 @@ Example:
 
 ```javascript
 lock.acquire(executor, callback, {
-  wait_timeout: 1000
+  wait_timeout: 1000,
 });
 ```
 
@@ -189,6 +183,9 @@ Most commonly used options are:
 
 - `queue_size`  
   Max queue size for waiting jobs.
+
+- `queue_ejection_strategy`  
+  Which job to eject from the queue when it's full. Default is `newest`.
 
 Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. During runtime, you can change the defaults like this:
 
@@ -216,6 +213,22 @@ The library is not a good fit if:
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
+
+#### **3.0.0** (_2024/04/18_)
+
+Add option `queue_ejection_strategy`.
+
+Major version bump because the default strategy changed from "newest" (the old assumed value) to "newest" (makes more sense).
+
+To migrate, specify:
+
+```javascript
+{
+  "queue_ejection_strategy": "newest"
+}
+```
+
+in your job options.
 
 #### **2.0.3** (_2022/05/28_)
 

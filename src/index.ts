@@ -8,7 +8,7 @@ import {
   BetterLockQueueOverflowError,
   BetterLockWaitTimeoutError,
 } from './errors';
-import { ILockJobOptions as BetterLockJobOptions, IOptions as BetterLockOptions } from './options';
+import { ILockJobOptions as BetterLockJobOptions, IOptions as BetterLockOptions, IQueueEjectionStrategy as BetterLockQueueEjectionStrategy } from './options';
 import {
   IErrorName as BetterLockErrorName,
   IExecutor as BetterLockExecutor,
@@ -17,6 +17,7 @@ import {
 
 export {
   BetterLockOptions,
+  BetterLockQueueEjectionStrategy,
   BetterLockJobOptions,
   BetterLockExecutor,
   BetterLockKey,

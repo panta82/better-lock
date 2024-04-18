@@ -1,5 +1,6 @@
 import { KeyQueue, LockJob } from './internals';
 import { IErrorName } from './types';
+import { IQueueEjectionStrategy } from './options';
 
 export class BetterLockError extends Error {
   /**
@@ -97,10 +98,11 @@ export class BetterLockQueueOverflowError extends BetterLockError {
   public keys: string[];
   public job_count: number;
   public kicked_out_job_id: number;
+  public strategy: IQueueEjectionStrategy;
 
-  constructor(lockName, key, count, job: LockJob<any>) {
+  constructor(lockName, key, count, job: LockJob<any>, strategy: IQueueEjectionStrategy) {
     const keyDesignation = key === KeyQueue.DEFAULT_QUEUE_KEY ? '' : ` for key "${key}"`;
-    const message = `Too many jobs (${count}) are waiting${keyDesignation}. The most recent job (${job}) was kicked out`;
+    const message = `Too many jobs (${count}) are waiting${keyDesignation}. The ${strategy} job (${job}) was kicked out`;
 
     super(lockName, message, job.incoming_stack);
 
@@ -108,6 +110,7 @@ export class BetterLockQueueOverflowError extends BetterLockError {
     this.keys = job.keys;
     this.job_count = count;
     this.kicked_out_job_id = job.id;
+    this.strategy = strategy;
   }
 }
 

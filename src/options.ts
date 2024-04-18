@@ -18,6 +18,8 @@ export interface ILockJobOptions {
   extend_stack_traces?: boolean;
 }
 
+export type IQueueEjectionStrategy = 'oldest' | 'newest';
+
 /**
  * Options that apply on BetterLock instance
  */
@@ -37,6 +39,11 @@ export interface IOptions extends ILockJobOptions {
    * Max queue size for waiting jobs.
    */
   queue_size?: number | null;
+
+  /**
+   * If queue is full, which job to eject. Defaults to 'oldest'.
+   */
+  queue_ejection_strategy?: IQueueEjectionStrategy;
 
   /**
    * Lock name. This will be written in all logs and error messages, to help you distinguish between different locks

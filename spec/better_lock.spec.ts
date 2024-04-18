@@ -254,11 +254,46 @@ describe('BetterLock', () => {
   });
 
   describe('when overflowing', () => {
-    it('it will kick out the most recently submitted job', testDone => {
+    it('it will kick out the correct job using the default "oldest" strategy', testDone => {
       const lock = new BetterLock({
         wait_timeout: 200, // should never trigger
         execution_timeout: 300, // should never trigger
         queue_size: 2,
+      });
+
+      let cbCount = 0;
+      lock.acquire(waitCallback(25, 1), arg => {
+        // The executing one
+        cbCount++;
+        expect(cbCount).toEqual(2);
+        expect(arg).toEqual(1);
+      });
+      lock.acquire(waitCallback(5, 2), err => {
+        // This is the one that will get kicked out
+        cbCount++;
+        expect(cbCount).toEqual(1);
+        expect(err).toBeInstanceOf(BetterLock.QueueOverflowError);
+      });
+      lock.acquire(waitCallback(5, 3), arg => {
+        cbCount++;
+        expect(cbCount).toEqual(3);
+        expect(arg).toEqual(3);
+        testDone();
+      });
+      lock.acquire(waitCallback(5, 4), arg => {
+        // This one will trigger the kicking out.
+        cbCount++;
+        expect(cbCount).toEqual(4);
+        expect(arg).toEqual(4);
+      });
+    });
+
+    it('it will kick out the correct job using the "newest" strategy', testDone => {
+      const lock = new BetterLock({
+        wait_timeout: 200, // should never trigger
+        execution_timeout: 300, // should never trigger
+        queue_size: 2,
+        queue_ejection_strategy: 'newest',
       });
 
       let cbCount = 0;
@@ -310,6 +345,7 @@ describe('BetterLock', () => {
         wait_timeout: 0,
         execution_timeout: 5,
         queue_size: 1,
+        queue_ejection_strategy: 'newest',
       });
 
       return Promise.all([

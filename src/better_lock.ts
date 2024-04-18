@@ -242,18 +242,20 @@ export class BetterLock {
 
       // Handle wait queue overflow
       if (tools.isNumber(this.options.queue_size) && this.options.queue_size < queue.jobs.length) {
-        // Overflow. Reject the most recent job
-        const mostRecentJob = queue.jobs[queue.jobs.length - 1];
+        const strategy = this.options.queue_ejection_strategy || 'oldest';
+
+        const targetJob = queue.jobs[strategy === 'oldest' ? 0 : queue.jobs.length - 1];
         this.log(
-          `${queue.toString()} has overflown, so most recent job (${mostRecentJob}) was kicked out`
+          `${queue.toString()} has overflown, so the ${strategy} job (${targetJob}) was kicked out`
         );
 
-        this.endJob(mostRecentJob, [
+        this.endJob(targetJob, [
           new BetterLockQueueOverflowError(
             this.options.name,
             queue.key,
             queue.jobs.length,
-            mostRecentJob
+            targetJob,
+            strategy
           ),
         ]);
       }

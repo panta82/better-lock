@@ -12,8 +12,8 @@ export type IErrorName = keyof IErrorExports;
  * but also old-school callbacks, with varargs return values.
  */
 export type ICallback<TResult> = TResult extends any[]
-  ? (err?: Error, ...result: TResult) => void
-  : (err?: Error, result?: TResult) => void;
+  ? (err: Error | null, ...result: TResult) => void
+  : (err: Error | null, result?: TResult) => void;
 
 /**
  * Function that user will supply as the thing that will be running inside lock.
