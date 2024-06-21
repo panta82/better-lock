@@ -184,9 +184,6 @@ Most commonly used options are:
 - `queue_size`  
   Max queue size for waiting jobs.
 
-- `queue_ejection_strategy`  
-  Which job to eject from the queue when it's full. Default is `newest`.
-
 Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. During runtime, you can change the defaults like this:
 
 ```javascript
@@ -213,6 +210,10 @@ The library is not a good fit if:
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
+
+#### **3.1.0** (_2024/06/21_)
+
+Add option `lock_condition`.
 
 #### **3.0.0** (_2024/04/18_)
 

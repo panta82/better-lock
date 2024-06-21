@@ -133,23 +133,6 @@ export class BetterLock {
       key = null;
     }
 
-    // Repackage "key" into an array of keys
-    const keys = [];
-    if (Array.isArray(key)) {
-      const arrayOfKeys = key;
-      // Make sure we don't add duplicates
-      const seenKeys = new Set();
-      for (let i = 0; i < arrayOfKeys.length; i++) {
-        const normalizedKey = this.normalizeAndValidateKey(arrayOfKeys[i]);
-        if (!seenKeys.has(normalizedKey)) {
-          keys.push(normalizedKey);
-          seenKeys.add(normalizedKey);
-        }
-      }
-    } else {
-      keys.push(this.normalizeAndValidateKey(key));
-    }
-
     // Create callback wrapper for promise interface
     if (!tools.isFunction(callback)) {
       if (jobOptions === undefined) {
@@ -157,6 +140,32 @@ export class BetterLock {
       }
 
       callback = tools.callbackWithPromise();
+    }
+
+    // Prepare job options
+    const effectiveJobOptions = jobOptions
+      ? tools.assign({} as IOptions, [this.options, jobOptions])
+      : // No need to create new object since these will be read-only and are subset of global options
+        this.options;
+
+    // Repackage "key" into an array of keys, but only if lock_condition allows it.
+    // Otherwise, it stays an array and gets executed immediately.
+    const keys = [];
+    if (!effectiveJobOptions.lock_condition || effectiveJobOptions.lock_condition(key)) {
+      if (Array.isArray(key)) {
+        const arrayOfKeys = key;
+        // Make sure we don't add duplicates
+        const seenKeys = new Set();
+        for (let i = 0; i < arrayOfKeys.length; i++) {
+          const normalizedKey = this.normalizeAndValidateKey(arrayOfKeys[i]);
+          if (!seenKeys.has(normalizedKey)) {
+            keys.push(normalizedKey);
+            seenKeys.add(normalizedKey);
+          }
+        }
+      } else {
+        keys.push(this.normalizeAndValidateKey(key));
+      }
     }
 
     // Validate other options
@@ -176,12 +185,6 @@ export class BetterLock {
         callback
       );
     }
-
-    // Prepare job options
-    const effectiveJobOptions = jobOptions
-      ? tools.assign({}, [this.options, jobOptions])
-      : // No need to create new object since these will be read-only and are subset of global options
-        this.options;
 
     const job = new LockJob(keys, executor, callback, effectiveJobOptions);
 

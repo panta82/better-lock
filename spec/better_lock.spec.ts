@@ -1,5 +1,6 @@
 import BetterLock from '../src/index';
 import { LockJob } from '../src/internals';
+import { ILockJobOptions } from '../src/options';
 
 describe('BetterLock', () => {
   let baseDefaultOptions;
@@ -624,6 +625,65 @@ describe('BetterLock', () => {
         .finally(() => {
           expect(executed).toBeTruthy();
         });
+    });
+  });
+
+  describe('will respect lock_condition', () => {
+    function runJob(
+      lock: InstanceType<typeof BetterLock>,
+      key: string,
+      expectedMs: number,
+      options?: ILockJobOptions
+    ) {
+      const startedAt = new Date();
+      let executed = false;
+      return lock
+        .acquire(
+          key,
+          () => {
+            executed = true;
+            expectMs(new Date().valueOf() - startedAt.valueOf(), expectedMs);
+            return waitPromise(50);
+          },
+          options
+        )
+        .finally(() => {
+          expect(executed).toBeTruthy();
+        });
+    }
+
+    it('for global condition', async () => {
+      const lock = new BetterLock({
+        lock_condition: key => !String(key).startsWith('a'),
+      });
+
+      await Promise.all([
+        runJob(lock, 'a', 0),
+        runJob(lock, 'a', 0),
+        runJob(lock, 'a', 0),
+        runJob(lock, 'b', 0),
+        runJob(lock, 'b', 50),
+        runJob(lock, 'b', 100),
+      ]);
+    });
+
+    it('for local condition', async () => {
+      const lock = new BetterLock({
+        lock_condition: key => !String(key).startsWith('a'),
+      });
+
+      const overrideToB = {
+        lock_condition: key => !String(key).startsWith('b'),
+      };
+
+      await Promise.all([
+        runJob(lock, 'b', 0, overrideToB),
+        runJob(lock, 'b', 0, overrideToB),
+        runJob(lock, 'b', 0, overrideToB),
+        runJob(lock, 'a', 0, overrideToB),
+        runJob(lock, 'a', 50, overrideToB),
+        runJob(lock, 'a', 100, overrideToB),
+      ]);
     });
   });
 });

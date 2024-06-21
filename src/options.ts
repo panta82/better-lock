@@ -1,3 +1,5 @@
+import { ILockKey } from './types';
+
 /**
  * Options that apply on LockJob
  */
@@ -16,6 +18,13 @@ export interface ILockJobOptions {
    * In any error produced by BetterLock, extend the stack trace to include incoming trace. Overrides BetterLockOptions value.
    */
   extend_stack_traces?: boolean;
+
+  /**
+   * Before acquiring lock, call this function with the given key. If condition is rejected, the executor is immediately called, without locking.
+   * This can be used to more conveniently opt out of locking, without duplicating or extracting the executor.
+   * Overrides BetterLockOptions value.
+   */
+  lock_condition?: (key: ILockKey | Array<ILockKey>) => boolean;
 }
 
 export type IQueueEjectionStrategy = 'oldest' | 'newest';
@@ -44,6 +53,12 @@ export interface IOptions extends ILockJobOptions {
    * If queue is full, which job to eject. Defaults to 'oldest'.
    */
   queue_ejection_strategy?: IQueueEjectionStrategy;
+
+  /**
+   * Before acquiring lock, call this function with the given key. If condition is rejected, the executor is immediately called, without locking.
+   * This can be used to more conveniently opt out of locking, without duplicating or extracting the executor.
+   */
+  lock_condition?: (key: ILockKey | Array<ILockKey>) => boolean;
 
   /**
    * Lock name. This will be written in all logs and error messages, to help you distinguish between different locks
