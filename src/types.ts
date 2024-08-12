@@ -27,3 +27,8 @@ export type IExecutor<TResult> = ICallbackExecutor<TResult> | IPromiseExecutor<T
  * Key types that can be used for a lock.
  */
 export type ILockKey = string | number | null | undefined;
+
+/**
+ * Valid results are anything except functions
+ */
+export type IValidResult = Exclude<any, (...args: any[]) => any>;

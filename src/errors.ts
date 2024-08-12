@@ -51,7 +51,12 @@ export class BetterLockInternalError extends BetterLockError {
 }
 
 export class BetterLockInvalidArgumentError extends BetterLockError {
-  constructor(lockName, public argument, expected, actual) {
+  constructor(
+    lockName,
+    public argument,
+    expected,
+    actual
+  ) {
     super(lockName, `Argument "${argument}" must be ${expected} (got: "${actual}")`);
     this.argument = argument;
   }
@@ -124,4 +129,12 @@ export class BetterLockJobAbortedError extends BetterLockError {
     this.job_id = job.id;
     this.keys = job.keys;
   }
+}
+
+export function isAcquisitionFailureError(err) {
+  return (
+    (err && err instanceof BetterLockQueueOverflowError) ||
+    err instanceof BetterLockWaitTimeoutError ||
+    err instanceof BetterLockJobAbortedError
+  );
 }

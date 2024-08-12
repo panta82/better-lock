@@ -5,11 +5,12 @@ import {
   BetterLockJobAbortedError,
   BetterLockQueueOverflowError,
   BetterLockWaitTimeoutError,
+  isAcquisitionFailureError,
 } from './errors';
 import { KeyQueue, LockJob } from './internals';
 import { ILockJobOptions, IOptions } from './options';
 import * as tools from './tools';
-import { ICallback, ICallbackExecutor, ILockKey, IPromiseExecutor } from './types';
+import { ICallback, ICallbackExecutor, ILockKey, IPromiseExecutor, IValidResult } from './types';
 
 /**
  * Main better lock class.
@@ -80,30 +81,30 @@ export class BetterLock {
     );
   }
 
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     executor: IPromiseExecutor<TResult>,
     jobOptions?: ILockJobOptions
   ): Promise<TResult>;
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     executor: ICallbackExecutor<TResult>,
     jobOptions?: ILockJobOptions
   ): Promise<TResult>;
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     executor: ICallbackExecutor<TResult>,
     callback: ICallback<TResult>,
     jobOptions?: ILockJobOptions
   ): void;
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     key: ILockKey | Array<ILockKey>,
     executor: IPromiseExecutor<TResult>,
     jobOptions?: ILockJobOptions
   ): Promise<TResult>;
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     key: ILockKey | Array<ILockKey>,
     executor: ICallbackExecutor<TResult>,
     jobOptions?: ILockJobOptions
   ): Promise<TResult>;
-  public acquire<TResult>(
+  public acquire<TResult extends IValidResult>(
     key: ILockKey | Array<ILockKey>,
     executor: ICallbackExecutor<TResult>,
     callback: ICallback<TResult>,
@@ -125,7 +126,7 @@ export class BetterLock {
    * @param jobOptions Options to be applied on this job only
    */
   public acquire(key, executor?, callback?, jobOptions?) {
-    if (tools.isFunction(key) || tools.isObject(key)) {
+    if (tools.isFunction(key)) {
       // Presume we weren't given a key (first form)
       jobOptions = callback;
       callback = executor;
@@ -222,6 +223,86 @@ export class BetterLock {
     }
 
     return (callback as any).promise;
+  }
+
+  public acquireOr<TResult extends IValidResult>(
+    failureResult: TResult,
+    executor: IPromiseExecutor<TResult>,
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquireOr<TResult extends IValidResult>(
+    failureResult: TResult,
+    executor: ICallbackExecutor<TResult>,
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquireOr<TResult extends IValidResult>(
+    failureResult: TResult,
+    executor: ICallbackExecutor<TResult>,
+    callback: ICallback<TResult>,
+    jobOptions?: ILockJobOptions
+  ): void;
+  public acquireOr<TResult extends IValidResult>(
+    key: ILockKey | Array<ILockKey>,
+    failureResult: TResult,
+    executor: IPromiseExecutor<TResult>,
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquireOr<TResult extends IValidResult>(
+    key: ILockKey | Array<ILockKey>,
+    failureResult: TResult,
+    executor: ICallbackExecutor<TResult>,
+    jobOptions?: ILockJobOptions
+  ): Promise<TResult>;
+  public acquireOr<TResult extends IValidResult>(
+    key: ILockKey | Array<ILockKey>,
+    failureResult: TResult,
+    executor: ICallbackExecutor<TResult>,
+    callback: ICallback<TResult>,
+    jobOptions?: ILockJobOptions
+  ): void;
+  /**
+   * The same as acquire, except if the lock can't be acquired (the executor never gets called), instead of throwing
+   * an error, the lock will resolve/callback with the provided failureResult value (for example, a `null`).
+   * @param key Named key or array of keys for this particular call. Calls with different keys will be run in parallel. Not required.
+   * @param failureResult The value to return if the executor never get called. This happens instead of rejecting.
+   * @param executor Function that will run inside the lock. Required.
+   * @param callback Function to be called after the executor finishes, or there is an execution timeout. Leave out to use promises.
+   * @param jobOptions Options to be applied on this job only
+   */
+  public acquireOr(key, failureResult, executor?, callback?, jobOptions?) {
+    if (tools.isFunction(failureResult)) {
+      // There is no key given. Reshuffle.
+      jobOptions = callback;
+      callback = executor;
+      executor = failureResult;
+      failureResult = key;
+      key = null;
+    }
+
+    if (tools.isFunction(callback)) {
+      const originalCallback = callback;
+      callback = (err, ...results) => {
+        if (isAcquisitionFailureError(err)) {
+          originalCallback(null, failureResult);
+        } else {
+          originalCallback(err, ...results);
+        }
+      };
+    }
+
+    // noinspection JSVoidFunctionReturnValueUsed
+    let promiseResult = this.acquire(key, executor, callback, jobOptions) as any;
+
+    if (typeof promiseResult !== 'undefined') {
+      promiseResult = promiseResult.catch(err => {
+        if (isAcquisitionFailureError(err)) {
+          return failureResult;
+        }
+        throw err;
+      });
+    }
+
+    return promiseResult;
   }
 
   /**

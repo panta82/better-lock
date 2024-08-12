@@ -686,6 +686,106 @@ describe('BetterLock', () => {
       ]);
     });
   });
+
+  describe('acquireOr', () => {
+    describe('will correctly handle failureResults', () => {
+      it('from QueueOverflowError', testDone => {
+        const lock = new BetterLock({
+          wait_timeout: 200, // should never trigger
+          execution_timeout: 300, // should never trigger
+          queue_size: 2,
+        });
+
+        let cbCount = 0;
+        lock.acquireOr(0, waitCallback(25, null, 1), (err, res) => {
+          // The executing one
+          cbCount++;
+          expect(cbCount).toEqual(2);
+          expect(err).toBeNull();
+          expect(res).toEqual(1);
+        });
+        lock.acquireOr(0, waitCallback(5, null, 2), (err, res) => {
+          // This is the one that will get kicked out
+          cbCount++;
+          expect(cbCount).toEqual(1);
+          expect(err).toBeNull();
+          expect(res).toEqual(0);
+        });
+        lock.acquireOr(0, waitCallback(5, null, 3), (err, res) => {
+          cbCount++;
+          expect(cbCount).toEqual(3);
+          expect(err).toBeNull();
+          expect(res).toEqual(3);
+          testDone();
+        });
+        lock.acquireOr(0, waitCallback(5, null, 4), (err, res) => {
+          // This one will trigger the kicking out.
+          cbCount++;
+          expect(cbCount).toEqual(4);
+          expect(err).toBeNull();
+          expect(res).toEqual(4);
+        });
+      });
+
+      it('from WaitTimeoutError', async () => {
+        const lock = new BetterLock({
+          wait_timeout: 50,
+          execution_timeout: 100, // should never trigger
+        });
+
+        const promise1 = lock.acquireOr('fail1', waitCallback(75, null, 'ok1'));
+        const promise2 = lock.acquireOr('fail2', waitCallback(200000, null, 'ok2'));
+
+        // Enqueue after some time, this one should run
+        await waitPromise(50);
+        const promise3 = lock.acquireOr('fail3', waitCallback(50, null, 'ok3'));
+
+        const results = await Promise.all([promise1, promise2, promise3]);
+
+        expect(results).toEqual(['ok1', 'fail2', 'ok3']);
+      });
+
+      it('from AbortedError', async () => {
+        const lock = new BetterLock();
+
+        let noCallCount = 0;
+        const noCall = () => {
+          noCallCount++;
+        };
+
+        let cbCount = 0;
+        const callback = (err, res) => {
+          cbCount++;
+          expect(err).toBeNull();
+          expect(res).toEqual('fail');
+        };
+
+        lock.acquireOr('fail', noCall, callback);
+        lock.acquireOr('a', 'fail', noCall, callback);
+        lock.acquireOr('b', 'fail', noCall, callback);
+
+        lock.abortAll();
+
+        expect(lock.canAcquire()).toBeTruthy();
+        expect(lock.canAcquire('a')).toBeTruthy();
+        expect(lock.canAcquire('b')).toBeTruthy();
+        expect(noCallCount).toEqual(0);
+        expect(cbCount).toEqual(3);
+      });
+    });
+
+    it('will correctly pass other errors ', async () => {
+      const lock = new BetterLock({
+        execution_timeout: 10,
+      });
+
+      await expect(
+        lock.acquireOr('fail', async () => {
+          await waitPromise(20); // Should cause ExecutionTimeoutError.
+        })
+      ).rejects.toBeInstanceOf(BetterLock.ExecutionTimeoutError);
+    });
+  });
 });
 
 function waitCallback(ms: number, ...args): (done: (...args: any) => void) => void {

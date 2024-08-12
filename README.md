@@ -149,6 +149,10 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
   - `callback`: Optional callback that will be called once executor exits. Results from executor (resolved/rejected value or arguments given to `done`) will be passed along. This can be used in addition to the returned promise.
   - `jobOptions`: An object that should match interface `BetterLockJobOptions`. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).
 
+- `BetterLock.acquireOr([key], failureResult, executor, [callback], [jobOptions])`  
+  The same as acquire, except if the lock can't be acquired (the executor never gets called), instead of throwing
+  an error, the lock will resolve/callback with the provided failureResult value (for example, a `null`).
+
 - `BetterLock.canAcquire([key])`  
   Returns true if given key can be acquired.
 
@@ -210,6 +214,10 @@ The library is not a good fit if:
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
+
+#### **3.2.0** (_2024/06/21_)
+
+Add new api `canAcquire`. A helper for "best effort" lock acquisition.
 
 #### **3.1.0** (_2024/06/21_)
 

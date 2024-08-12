@@ -87,6 +87,9 @@
 <li><code>jobOptions</code>: An object that should match interface <code>BetterLockJobOptions</code>. A subset of main options that will serve as overrides for this particular job (for example, timeout settings).</li>
 </ul>
 </li>
+<li><p><code>BetterLock.acquireOr([key], failureResult, executor, [callback], [jobOptions])</code><br>The same as acquire, except if the lock can&#39;t be acquired (the executor never gets called), instead of throwing
+an error, the lock will resolve/callback with the provided failureResult value (for example, a <code>null</code>).</p>
+</li>
 <li><p><code>BetterLock.canAcquire([key])</code><br>Returns true if given key can be acquired.</p>
 </li>
 <li><p><code>BetterLock.abort([key])</code><br>Abort all jobs for a given key (or from the default job queue, if no key is given). Job executors will not be called. Callbacks will be called with <code>JobAbortedError</code>. Currently executing job will not be interrupted.</p>
@@ -111,8 +114,6 @@
 If you do that, though, and you have a swallowed callback, the lock can remain locked permanently.</p>
 </li>
 <li><p><code>queue_size</code><br>Max queue size for waiting jobs.</p>
-</li>
-<li><p><code>queue_ejection_strategy</code><br>Which job to eject from the queue when it&#39;s full. Default is <code>newest</code>.</p>
 </li>
 </ul>
 <p>Default options are a static member <code>DEFAULT_OPTIONS</code> on the <code>BetterLock</code> class. During runtime, you can change the defaults like this:</p>
@@ -140,6 +141,16 @@ If you do that, though, and you have a swallowed callback, the lock can remain l
 <a href="#change-log" id="change-log" style="color: inherit; text-decoration: none;">
   <h3>Change log</h3>
 </a>
+
+<a href="#320-20240621" id="320-20240621" style="color: inherit; text-decoration: none;">
+  <h4><strong>3.2.0</strong> (<em>2024/06/21</em>)</h4>
+</a>
+<p>Add new api <code>canAcquire</code>. A helper for &quot;best effort&quot; lock acquisition.</p>
+
+<a href="#310-20240621" id="310-20240621" style="color: inherit; text-decoration: none;">
+  <h4><strong>3.1.0</strong> (<em>2024/06/21</em>)</h4>
+</a>
+<p>Add option <code>lock_condition</code>.</p>
 
 <a href="#300-20240418" id="300-20240418" style="color: inherit; text-decoration: none;">
   <h4><strong>3.0.0</strong> (<em>2024/04/18</em>)</h4>
