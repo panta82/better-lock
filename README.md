@@ -208,7 +208,7 @@ This library is a good fit if:
 The library is not a good fit if:
 
 - **You need lock reentrancy.**  
-  There is no good solution for this in node.js that I know of. And this library doesn't offer any.
+  The library doesn't currently use node's new `AsyncLocalStorage` API, so it doesn't support reentrancy. You are safe from deadlocks when calling with multiple keys, because the keys are enqueued synchronously. But you should not call `lock.acquire` from within an executor function or its sub-calls (or make sure you know what you're doing).
 
 - **You need a shared lock between different nodes**  
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
