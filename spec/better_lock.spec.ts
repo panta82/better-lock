@@ -366,6 +366,18 @@ describe('BetterLock', () => {
     })();
   });
 
+  it('will skip extended stack traces when the runtime does not support them', async () => {
+    const captureStackTrace = Error.captureStackTrace;
+    Error.captureStackTrace = undefined;
+
+    try {
+      const lock = new BetterLock({ extend_stack_traces: true });
+      await expect(lock.acquire(() => Promise.resolve('ok'))).resolves.toEqual('ok');
+    } finally {
+      Error.captureStackTrace = captureStackTrace;
+    }
+  });
+
   it('can abort specific key', done => {
     const lock = new BetterLock();
 

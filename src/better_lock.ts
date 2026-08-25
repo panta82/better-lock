@@ -190,9 +190,12 @@ export class BetterLock {
     const job = new LockJob(keys, executor, callback, effectiveJobOptions);
 
     // Set incoming stack
-    if (effectiveJobOptions.extend_stack_traces) {
+    if (
+      effectiveJobOptions.extend_stack_traces &&
+      typeof (Error as any).captureStackTrace === 'function'
+    ) {
       const tempErr = new Error();
-      Error.captureStackTrace(tempErr, this.acquire);
+      (Error as any).captureStackTrace(tempErr, this.acquire);
       job.incoming_stack = tempErr.stack;
     }
 
@@ -356,7 +359,7 @@ export class BetterLock {
     // We want to do the rest of this in a separate context, because we don't want user executor code
     // to ever interfere with the code calling acquire().
 
-    setImmediate(() => {
+    setTimeout(() => {
       // Make sure job hasn't been ended in the meantime
       if (job.executed_at || job.ended_at) {
         return;
@@ -417,7 +420,7 @@ export class BetterLock {
         // "promise" is just some random value. We don't have to wait
         lockDone(null, executorResult);
       }
-    });
+    }, 0);
   }
 
   private onWaitTimeout(job: LockJob<any>) {
@@ -484,7 +487,7 @@ export class BetterLock {
       job.callback.apply(null, callbackArgs);
     } finally {
       // Whatever happens, schedule a queue update
-      setImmediate(() => this.update(queuesToUpdate));
+      setTimeout(() => this.update(queuesToUpdate), 0);
     }
   }
 

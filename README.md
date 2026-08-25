@@ -24,6 +24,24 @@ npm install --save better-lock
 yarn add better-lock
 ```
 
+### Browser usage
+
+Better Lock can be bundled for frontend use. A lock coordinates asynchronous work only within the
+current JavaScript context; it is not shared between tabs, workers, or other devices.
+
+```typescript
+import BetterLock from 'better-lock';
+
+const lock = new BetterLock();
+```
+
+The published package is CommonJS, so use it through a frontend bundler such as Vite or webpack. It
+cannot be loaded directly from a browser `<script type="module">` tag.
+
+Extended stack traces are enabled by default when the runtime supports `Error.captureStackTrace`.
+In browsers without that API, Better Lock automatically skips stack extension and otherwise works
+normally.
+
 ### Documentation
 
 Full docs: <https://panta82.github.io/better-lock/>
@@ -214,6 +232,14 @@ The library is not a good fit if:
   This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
 
 ### Change log
+
+#### **3.3.0** (_2026/08/25_)
+
+Make the library compatible with browsers.
+
+#### **3.2.0** (_2024/06/21_)
+
+Add new api `canAcquire`. A helper for "best effort" lock acquisition.
 
 #### **3.2.0** (_2024/06/21_)
 

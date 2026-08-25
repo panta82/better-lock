@@ -1,12 +1,12 @@
 {
   "name": "better-lock",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "A (better) node.js lock library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
     "test": "jest",
     "watch": "jest --watchAll",
     "lint": "eslint ./src",
@@ -55,6 +55,5 @@
     ".js, .jsx": {
       "style": "module"
     }
-  },
-  "dependencies": {}
+  }
 }
