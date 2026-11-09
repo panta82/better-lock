@@ -131,6 +131,34 @@ export class BetterLockJobAbortedError extends BetterLockError {
   }
 }
 
+export class BetterLockReentrancyError extends BetterLockError {
+  /**
+   * Keys requested by the rejected acquire call
+   */
+  public keys: string[];
+
+  /**
+   * Requested keys that the caller already holds
+   */
+  public held_keys: string[];
+
+  constructor(lockName, keys: string[], heldKeys: string[]) {
+    const describe = (list: string[]) =>
+      list.map(key => (key === null ? '<default>' : `"${key}"`)).join(', ');
+    const message =
+      heldKeys.length < keys.length
+        ? `Caller holds only some of the requested keys (${describe(
+            heldKeys
+          )} of ${describe(keys)}). Waiting for the rest while holding these could deadlock`
+        : `Reentrant acquire of ${describe(keys)} is not allowed (reentrancy: "error")`;
+
+    super(lockName, message);
+
+    this.keys = keys;
+    this.held_keys = heldKeys;
+  }
+}
+
 export function isAcquisitionFailureError(err) {
   return (
     (err && err instanceof BetterLockQueueOverflowError) ||

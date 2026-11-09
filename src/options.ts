@@ -25,9 +25,20 @@ export interface ILockJobOptions {
    * Overrides BetterLockOptions value.
    */
   lock_condition?: (key: ILockKey | Array<ILockKey>) => boolean;
+
+  /**
+   * What to do when acquire is called from code that already holds all the requested keys. Overrides BetterLockOptions value.
+   */
+  reentrancy?: IReentrancyMode;
 }
 
 export type IQueueEjectionStrategy = 'oldest' | 'newest';
+
+/**
+ * - 'allow': run the executor without waiting for the keys the caller already holds.
+ * - 'error': fail with BetterLockReentrancyError.
+ */
+export type IReentrancyMode = 'allow' | 'error';
 
 /**
  * Options that apply on BetterLock instance
@@ -59,6 +70,19 @@ export interface IOptions extends ILockJobOptions {
    * This can be used to more conveniently opt out of locking, without duplicating or extracting the executor.
    */
   lock_condition?: (key: ILockKey | Array<ILockKey>) => boolean;
+
+  /**
+   * What to do when acquire is called from code that already holds all the requested keys (inside the executor, or
+   * in async work the executor started and that runs before it finishes). 'allow' runs the executor without
+   * waiting, 'error' fails with BetterLockReentrancyError. Defaults to 'allow'.
+   *
+   * Holding only some of the requested keys always fails with BetterLockReentrancyError, because waiting for the rest
+   * while holding these could deadlock.
+   *
+   * Requires Node.js AsyncLocalStorage, looked up through process.getBuiltinModule (Node.js 20.16+ or 22.3+).
+   * In other runtimes, this option has no effect and nested acquire calls wait in the queue like any other.
+   */
+  reentrancy?: IReentrancyMode;
 
   /**
    * Lock name. This will be written in all logs and error messages, to help you distinguish between different locks

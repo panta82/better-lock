@@ -1,3 +1,4 @@
+import { IAsyncResource } from './async_context';
 import { ILockJobOptions } from './options';
 import { ICallback, IExecutor } from './types';
 
@@ -65,6 +66,17 @@ export class LockJob<TResult> {
    * Saved incoming stack, for the purpose of extending stack traces
    */
   public incoming_stack: string = null;
+
+  /**
+   * Async context of the acquire() call. Executor and callback run in it. Undefined if the runtime doesn't support it.
+   */
+  public async_context: IAsyncResource | undefined = undefined;
+
+  /**
+   * Set for reentrant jobs: the executing jobs (from the caller's async context) that hold this job's keys.
+   * A reentrant job doesn't enter key queues. It runs while these jobs hold the keys.
+   */
+  public reentrant_holders: LockJob<any>[] | null = null;
 
   constructor(
     keys: Array<string | null>,

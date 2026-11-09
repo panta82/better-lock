@@ -9,6 +9,8 @@ A (better) node.js lock library.
 - Queue and execution timeouts
 - Queue size limit
 - Lock on multiple keys
+- Reentrancy, with deadlock prevention (Node.js)
+- Executors run in the caller's async context, preserving `AsyncLocalStorage` stores (Node.js)
 - Extended stack traces
 - Promise and callback interface
 - JSDoc annotations
@@ -41,6 +43,9 @@ cannot be loaded directly from a browser `<script type="module">` tag.
 Extended stack traces are enabled by default when the runtime supports `Error.captureStackTrace`.
 In browsers without that API, Better Lock automatically skips stack extension and otherwise works
 normally.
+
+[Async context](#async-context) and [reentrancy](#reentrancy) require Node.js `async_hooks`, so they are unavailable in
+browsers. See [Runtime support](#runtime-support).
 
 ### Documentation
 
@@ -150,15 +155,13 @@ lock.acquire(
 );
 ```
 
-You can see a bunch more usage examples in the spec file, [here](spec/better_lock.spec.ts);
-
 ### API
 
 - `new BetterLock(options)`  
   Create a new instance of `BetterLock`. Options should match interface `BetterLockOptions`. See below for details.
 
 - `BetterLock.acquire([key], executor, [callback], [jobOptions])`  
-  The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. If you don't provide `callback`, it will return a promise that will be resolved with whatever `executor` returns.
+  The main method you'll want to call. For each `key`, given `executor` will be called only one at a time. If you don't provide `callback`, it will return a promise that will be resolved with whatever `executor` returns. If the caller already holds the keys, the executor runs without waiting (see [Reentrancy](#reentrancy)).
 
   - `key`: Arbitrary string under which to lock. It allows you to use the same lock instance for multiple parallel concerns. Eg. this might be a database record id or filename.
   - `executor`: Function that will be called within the lock. This function should have one of two forms.
@@ -172,7 +175,7 @@ You can see a bunch more usage examples in the spec file, [here](spec/better_loc
   an error, the lock will resolve/callback with the provided failureResult value (for example, a `null`).
 
 - `BetterLock.canAcquire([key])`  
-  Returns true if given key can be acquired.
+  Returns true if the given key can be acquired immediately: nothing holds it and nothing waits for it, or the caller already holds it and reentrancy is allowed.
 
 - `BetterLock.abort([key])`  
   Abort all jobs for a given key (or from the default job queue, if no key is given). Job executors will not be called. Callbacks will be called with `JobAbortedError`. Currently executing job will not be interrupted.
@@ -206,12 +209,56 @@ Most commonly used options are:
 - `queue_size`  
   Max queue size for waiting jobs.
 
+- `reentrancy`
+  `'allow'` (default) or `'error'`. What to do when the caller already holds all the requested keys. See [Reentrancy](#reentrancy).
+
 Default options are a static member `DEFAULT_OPTIONS` on the `BetterLock` class. During runtime, you can change the defaults like this:
 
 ```javascript
 import BetterLock from 'better-lock';
 
 BetterLock.DEFAULT_OPTIONS.wait_timeout = 1000;
+```
+
+### Reentrancy
+
+Reentrancy means you can re-take the same lock from within the lock. This uses node's [AsyncLocalStorage](https://beta.docs.nodejs.org/async_context#class-asynclocalstorage) under the hood.
+
+```javascript
+const lock = new BetterLock();
+
+async function saveUser(user) {
+  return lock.acquire(user.id, () => db.save(user));
+}
+
+async function renameUser(id, name) {
+  return lock.acquire(id, async () => {
+    const user = await db.load(id);
+    user.name = name;
+    // Holds `id` already, so this doesn't wait
+    return saveUser(user);
+  });
+}
+```
+
+If you use multi-keys, the reentrancy will only work if you already hold _all_ the requested keys. Otherwise, the acquire fails with `BetterLockReentrancyError` (passed to the callback, or rejected from the promise), to prevent deadlocks. `acquireOr` passes it on too, instead of returning `failureResult`.
+
+Reentrant acquire works transparently. You'll get an immediate callback in the next tick, without taking any extra slots. `canAcquire(key)` returns true. If `lock_condition` rejects the key, nothing is locked, so there is nothing to reenter.
+
+### Async context
+
+Executors and callbacks run in the async context of the `acquire` call. If you use `AsyncLocalStorage` (eg. for request ids in logs), code inside the executor sees the store of whoever called `acquire`, even if it had to wait for another caller to release the lock.
+
+```javascript
+const requestContext = new AsyncLocalStorage();
+
+requestContext.run({ requestId: 1 }, () => lock.acquire(() => slowTask()));
+requestContext.run({ requestId: 2 }, () =>
+  lock.acquire(() => {
+    // Runs after request 1 releases the lock, but still sees request 2's store
+    console.log(requestContext.getStore().requestId); // 2
+  })
+);
 ```
 
 ### When to use
@@ -223,15 +270,15 @@ This library is a good fit if:
 - You like good error messages, with full stack traces.
 - You like good types, either through typescript or JSDoc comments
 
-The library is not a good fit if:
-
-- **You need lock reentrancy.**  
-  The library doesn't currently use node's new `AsyncLocalStorage` API, so it doesn't support reentrancy. You are safe from deadlocks when calling with multiple keys, because the keys are enqueued synchronously. But you should not call `lock.acquire` from within an executor function or its sub-calls (or make sure you know what you're doing).
-
-- **You need a shared lock between different nodes**  
-  This library is a single process only. If you need to coordinate multiple apps or services, you need a different library.
+The library is not a good fit if you need a **shared lock between different processes**. BetterLock is single process only.
 
 ### Change log
+
+#### **4.0.0** (_2026/11/09_)
+
+- Added **reentrancy**, You can now acquire the same lock again from within the lock. Set `options.reentrancy` to `"error"` to fail with `BetterLockReentrancyError` instead of re-locking the keys.
+- Executors and callbacks run in the async context of their `acquire` call, so `AsyncLocalStorage` stores no longer leak from the previous lock holder.
+- Both features require `process.getBuiltinModule` (Node.js 20.16+ or 22.3+). In other runtimes, the lock behaves as before.
 
 #### **3.3.0** (_2026/08/25_)
 
