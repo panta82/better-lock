@@ -6,10 +6,9 @@ import {
   BetterLockInvalidArgumentError,
   BetterLockJobAbortedError,
   BetterLockQueueOverflowError,
-  BetterLockReentrancyError,
   BetterLockWaitTimeoutError,
 } from './errors';
-import { ILockJobOptions as BetterLockJobOptions, IOptions as BetterLockOptions, IQueueEjectionStrategy as BetterLockQueueEjectionStrategy, IReentrancyMode as BetterLockReentrancyMode } from './options';
+import { ILockJobOptions as BetterLockJobOptions, IOptions as BetterLockOptions, IQueueEjectionStrategy as BetterLockQueueEjectionStrategy } from './options';
 import {
   IErrorName as BetterLockErrorName,
   IExecutor as BetterLockExecutor,
@@ -19,7 +18,6 @@ import {
 export {
   BetterLockOptions,
   BetterLockQueueEjectionStrategy,
-  BetterLockReentrancyMode,
   BetterLockJobOptions,
   BetterLockExecutor,
   BetterLockKey,
@@ -31,7 +29,6 @@ export {
   BetterLockInvalidArgumentError,
   BetterLockJobAbortedError,
   BetterLockQueueOverflowError,
-  BetterLockReentrancyError,
   BetterLockWaitTimeoutError,
 };
 
@@ -53,7 +50,6 @@ export const BetterLock = attachExports(BetterLockUnadorned, {
   ExecutionTimeoutError: BetterLockExecutionTimeoutError,
   QueueOverflowError: BetterLockQueueOverflowError,
   JobAbortedError: BetterLockJobAbortedError,
-  ReentrancyError: BetterLockReentrancyError,
 });
 
 export default BetterLock;

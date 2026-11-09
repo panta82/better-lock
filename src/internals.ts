@@ -72,12 +72,6 @@ export class LockJob<TResult> {
    */
   public async_context: IAsyncResource | undefined = undefined;
 
-  /**
-   * Set for reentrant jobs: the executing jobs (from the caller's async context) that hold this job's keys.
-   * A reentrant job doesn't enter key queues. It runs while these jobs hold the keys.
-   */
-  public reentrant_holders: LockJob<any>[] | null = null;
-
   constructor(
     keys: Array<string | null>,
     executor: IExecutor<TResult>,

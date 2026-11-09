@@ -1,11 +1,10 @@
-import { captureAsyncContext, getHeldJobs, runHoldingJob } from './async_context';
+import { captureAsyncContext } from './async_context';
 import {
   BetterLockExecutionTimeoutError,
   BetterLockInternalError,
   BetterLockInvalidArgumentError,
   BetterLockJobAbortedError,
   BetterLockQueueOverflowError,
-  BetterLockReentrancyError,
   BetterLockWaitTimeoutError,
   isAcquisitionFailureError,
 } from './errors';
@@ -24,17 +23,11 @@ export class BetterLock {
   static DEFAULT_OPTIONS: IOptions = {
     extend_stack_traces: true,
     promise_tester: p => p && typeof p.then === 'function',
-    reentrancy: 'allow',
   };
 
   private readonly options: IOptions;
   private readonly log: (msg: string) => void;
   private readonly queues: { [key: string]: KeyQueue };
-
-  /**
-   * Reentrant jobs that haven't started executing yet. They are not in any key queue, so we track them here for abort().
-   */
-  private readonly pendingReentrantJobs: LockJob<any>[] = [];
 
   /**
    * Create a better lock instance
@@ -60,49 +53,11 @@ export class BetterLock {
   }
 
   /**
-   * Returns true if the caller can *immediately* acquire the lock. There is nothing holding the key and nothing in the queue,
-   * or the caller already holds the key and reentrancy is allowed.
+   * Returns true if the caller can *immediately* acquire the lock. There is nothing holding the key and nothing in the queue.
    */
   public canAcquire(key?: string): boolean {
     const queue = this.getQueue(key);
-    if (!queue.active && !queue.jobs.length) {
-      return true;
-    }
-    return this.options.reentrancy !== 'error' && this.isHeldByCaller(queue, getHeldJobs());
-  }
-
-  /**
-   * True if the given queue's key is held by a job that is executing in the caller's async context.
-   * Ended jobs don't count, so detached work that outlives its job doesn't skip the lock.
-   */
-  private isHeldByCaller(queue: KeyQueue, heldJobs: ReadonlyArray<LockJob<any>> | undefined) {
-    const holder = queue.active;
-    return !!(heldJobs && holder && !holder.ended_at && heldJobs.indexOf(holder) >= 0);
-  }
-
-  /**
-   * Find which of the given keys the caller already holds, and the jobs holding them.
-   * Returns null if the caller holds none of them.
-   */
-  private findHeldKeys(
-    keys: Array<string | null>
-  ): { holders: LockJob<any>[]; heldKeys: Array<string | null> } | null {
-    const heldJobs = getHeldJobs();
-    if (!heldJobs || !keys.length) {
-      return null;
-    }
-
-    const holders: LockJob<any>[] = [];
-    const heldKeys: Array<string | null> = [];
-    for (let i = 0; i < keys.length; i++) {
-      const queue = this.getQueue(keys[i]);
-      if (this.isHeldByCaller(queue, heldJobs)) {
-        holders.push(queue.active);
-        heldKeys.push(keys[i]);
-      }
-    }
-
-    return holders.length ? { holders, heldKeys } : null;
+    return !queue.active && !queue.jobs.length;
   }
 
   private normalizeAndValidateKey(key: ILockKey) {
@@ -159,10 +114,6 @@ export class BetterLock {
   /**
    * Acquire the lock for given key or list of keys. If waiting on a list, keys will be acquired in order,
    * as they become free. Any deadlock prevention must be handled by the caller.
-   *
-   * If the caller already holds all the keys (it runs inside an executor holding them), the executor runs
-   * without waiting. If it holds only some of the keys, or the "reentrancy" option is set to "error", the
-   * callback (or the promise) gets BetterLockReentrancyError. Reentrancy requires Node.js AsyncLocalStorage.
    *
    * Once the lock is acquired, we will call the executor function, with a "done" method.
    * You must call "done" to release the lock. Alternatively, return a Promise; lock will be released
@@ -237,22 +188,6 @@ export class BetterLock {
       );
     }
 
-    // Invalid arguments throw above. Reentrancy errors depend on where acquire is called from,
-    // so they are reported like other lock errors: through the callback or promise.
-    const held = this.findHeldKeys(keys);
-    if (
-      held &&
-      // Waiting for the remaining keys while holding these could deadlock
-      (held.heldKeys.length < keys.length || effectiveJobOptions.reentrancy === 'error')
-    ) {
-      const err = new BetterLockReentrancyError(this.options.name, keys, held.heldKeys);
-      this.log(err.message);
-      // Never call back synchronously from acquire
-      setTimeout(() => callback(err), 0);
-      return (callback as any).promise;
-    }
-    const reentrantHolders = held ? held.holders : null;
-
     const job = new LockJob(keys, executor, callback, effectiveJobOptions);
 
     // Executor and callback will run in the caller's async context, not the context of whoever releases the lock
@@ -268,26 +203,10 @@ export class BetterLock {
       job.incoming_stack = tempErr.stack;
     }
 
-    if (reentrantHolders) {
-      // The caller holds all the keys. Run without entering the queues.
-      job.reentrant_holders = reentrantHolders;
-      this.pendingReentrantJobs.push(job);
-      this.log(`Reentering ${job}`);
-      this.executeJob(job);
-    } else {
-      this.enqueueJob(job);
-    }
-
-    return (callback as any).promise;
-  }
-
-  /**
-   * Add job to its key queues and start waiting for the keys
-   */
-  private enqueueJob(job: LockJob<any>) {
+    // Add job to its key queues
     const queuesToUpdate = [];
-    for (let i = 0; i < job.keys.length; i++) {
-      const queue = this.getQueue(job.keys[i]);
+    for (let i = 0; i < keys.length; i++) {
+      const queue = this.getQueue(keys[i]);
       queue.jobs.push(job);
       queuesToUpdate.push(queue);
     }
@@ -309,6 +228,8 @@ export class BetterLock {
       // Special case. We are given empty list of keys. We will immediately execute jobs like this.
       this.executeJob(job);
     }
+
+    return (callback as any).promise;
   }
 
   public acquireOr<TResult extends IValidResult>(
@@ -448,30 +369,17 @@ export class BetterLock {
         return;
       }
 
-      if (job.reentrant_holders) {
-        this.removePendingReentrantJob(job);
-
-        if (job.reentrant_holders.some(holder => holder.ended_at)) {
-          // The holder released the keys before this job could start (eg. the reentrant acquire wasn't awaited).
-          // Wait for the keys like any other job.
-          this.log(`${job} is no longer reentrant because its holder has ended`);
-          job.reentrant_holders = null;
-          this.enqueueJob(job);
-          return;
-        }
-      } else {
-        // Validate this job is holding all queues it needs
-        for (let i = 0; i < job.keys.length; i++) {
-          const queue = this.getQueue(job.keys[i]);
-          if (queue.active !== job) {
-            // This should never happen
-            return this.endJob(job, [
-              new BetterLockInternalError(
-                this.options.name,
-                `Corrupted wait queue state for ${queue.key}`
-              ),
-            ]);
-          }
+      // Validate this job is holding all queues it needs
+      for (let i = 0; i < job.keys.length; i++) {
+        const queue = this.getQueue(job.keys[i]);
+        if (queue.active !== job) {
+          // This should never happen
+          return this.endJob(job, [
+            new BetterLockInternalError(
+              this.options.name,
+              `Corrupted wait queue state for ${queue.key}`
+            ),
+          ]);
         }
       }
 
@@ -519,15 +427,11 @@ export class BetterLock {
         }
       };
 
-      if (!job.async_context) {
-        // No async context support in this runtime
-        runExecutor();
-      } else if (job.reentrant_holders) {
-        // The caller's context already records the holders
+      if (job.async_context) {
         job.async_context.runInAsyncScope(runExecutor);
       } else {
-        // Restore the caller's context first, then record this job as holding its keys inside it
-        job.async_context.runInAsyncScope(() => runHoldingJob(job, runExecutor));
+        // No async context support in this runtime
+        runExecutor();
       }
     }, 0);
   }
@@ -568,15 +472,9 @@ export class BetterLock {
 
     job.ended_at = new Date();
 
-    // Reentrant jobs never enter key queues, so they have nothing to release
-    const keysToRelease = job.reentrant_holders ? [] : job.keys;
-    if (job.reentrant_holders) {
-      this.removePendingReentrantJob(job);
-    }
-
     const queuesToUpdate = [];
-    for (let i = 0; i < keysToRelease.length; i++) {
-      const queue = this.getQueue(keysToRelease[i]);
+    for (let i = 0; i < job.keys.length; i++) {
+      const queue = this.getQueue(job.keys[i]);
       queuesToUpdate.push(queue);
 
       if (queue.active === job) {
@@ -624,19 +522,6 @@ export class BetterLock {
     if (queue.active && !queue.active.executed_at) {
       // If we have a job holding this queue that hasn't been executed yet, abort it as well
       this.endJob(queue.active, [new BetterLockJobAbortedError(this.options.name, queue.active)]);
-    }
-    // Reentrant jobs for this key that haven't started yet
-    this.pendingReentrantJobs.slice().forEach(job => {
-      if (job.keys.some(jobKey => this.getQueue(jobKey) === queue)) {
-        this.endJob(job, [new BetterLockJobAbortedError(this.options.name, job)]);
-      }
-    });
-  }
-
-  private removePendingReentrantJob(job: LockJob<any>) {
-    const index = this.pendingReentrantJobs.indexOf(job);
-    if (index >= 0) {
-      this.pendingReentrantJobs.splice(index, 1);
     }
   }
 
